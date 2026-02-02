@@ -87,6 +87,7 @@ import { renderNodes } from "./views/nodes";
 import { renderOverview } from "./views/overview";
 import { renderSessions } from "./views/sessions";
 import { renderSkills } from "./views/skills";
+import { renderWizard } from "./views/wizard";
 
 const AVATAR_DATA_RE = /^data:/i;
 const AVATAR_HTTP_RE = /^https?:\/\//i;
@@ -572,6 +573,36 @@ export function renderApp(state: AppViewState) {
                 onCallParamsChange: (next) => (state.debugCallParams = next),
                 onRefresh: () => loadDebug(state),
                 onCall: () => callDebugMethod(state),
+              })
+            : nothing
+        }
+
+        ${
+          state.tab === "wizard"
+            ? renderWizard({
+                connected: state.connected,
+                sessionsResult: state.sessionsResult,
+                projects: state.wizardProjects || [],
+                tasks: state.wizardTasks || [],
+                notes: state.wizardNotes || [],
+                deliverables: state.wizardDeliverables || [],
+                actionLog: state.wizardActionLog || [],
+                onAddTask: (title, description, projectId, priority, dueDate, labels) =>
+                  state.handleWizardAddTask(title, description, projectId, priority, dueDate, labels),
+                onUpdateTask: (taskId, updates) => state.handleWizardUpdateTask(taskId, updates),
+                onUpdateTaskStatus: (taskId, status) => state.handleWizardUpdateTaskStatus(taskId, status),
+                onDeleteTask: (taskId) => state.handleWizardDeleteTask(taskId),
+                onAddNote: (content) => state.handleWizardAddNote(content),
+                onUpdateNote: (noteId, content) => state.handleWizardUpdateNote(noteId, content),
+                onDeleteNote: (noteId) => state.handleWizardDeleteNote(noteId),
+                onAddTaskAttachment: (taskId, file) => state.handleWizardAddTaskAttachment(taskId, file),
+                onAddTaskChecklistItem: (taskId, text) => state.handleWizardAddTaskChecklistItem(taskId, text),
+                onUpdateChecklistItem: (taskId, itemId, updates) =>
+                  state.handleWizardUpdateChecklistItem(taskId, itemId, updates),
+                onDeleteChecklistItem: (taskId, itemId) => state.handleWizardDeleteChecklistItem(taskId, itemId),
+                onRefresh: () => state.handleWizardRefresh(),
+                onAddProject: (name, description) => state.handleWizardAddProject(name, description),
+                onDeleteProject: (projectId) => state.handleWizardDeleteProject(projectId),
               })
             : nothing
         }

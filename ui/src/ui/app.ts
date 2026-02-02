@@ -238,6 +238,33 @@ export class OpenClawApp extends LitElement {
   @state() logsAutoFollow = true;
   @state() logsTruncated = false;
   @state() logsCursor: number | null = null;
+
+  @state() wizardProjects: Array<{ id: string; name: string; description?: string; githubRepo?: string; devServerUrl?: string; status: "active" | "completed" | "archived"; createdAt: string; updatedAt: string; tags?: string[] }> = (() => {
+    try {
+      const stored = localStorage.getItem("openclaw.wizard.projects");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  })();
+  @state() wizardTasks: Array<{ id: string; title: string; description?: string; status: "todo" | "in_progress" | "testing" | "done" | "archived"; priority?: "low" | "medium" | "high"; createdAt: string; updatedAt: string; dueDate?: string; labels?: string[]; checklist?: Array<{ id: string; text: string; completed: boolean }>; attachments?: Array<{ id: string; name: string; url: string; type: string }>; projectId?: string }> = (() => {
+    try {
+      const stored = localStorage.getItem("openclaw.wizard.tasks");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  })();
+  @state() wizardNotes: Array<{ id: string; content: string; seenByAgent: boolean; createdAt: string }> = (() => {
+    try {
+      const stored = localStorage.getItem("openclaw.wizard.notes");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  })();
+  @state() wizardDeliverables: Array<{ id: string; title: string; type: string; url?: string; createdAt: string }> = [];
+  @state() wizardActionLog: Array<{ id: string; action: string; description?: string; agentId?: string; createdAt: string }> = [];
   @state() logsLastFetchAt: number | null = null;
   @state() logsLimit = 500;
   @state() logsMaxBytes = 250_000;
@@ -466,6 +493,142 @@ export class OpenClawApp extends LitElement {
     const newRatio = Math.max(0.4, Math.min(0.7, ratio));
     this.splitRatio = newRatio;
     this.applySettings({ ...this.settings, splitRatio: newRatio });
+  }
+
+  handleWizardAddTask(title: string, description?: string, projectId?: string, priority?: "low" | "medium" | "high", dueDate?: string, labels?: string[]) {
+    const task = {
+      id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title,
+      description,
+      status: "todo" as const,
+      priority,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      dueDate,
+      labels: labels || [],
+      checklist: [],
+      attachments: [],
+      projectId,
+    };
+    this.wizardTasks = [...this.wizardTasks, task];
+    localStorage.setItem("openclaw.wizard.tasks", JSON.stringify(this.wizardTasks));
+  }
+
+  handleWizardUpdateTask(taskId: string, updates: Partial<{ title: string; description: string; status: "todo" | "in_progress" | "testing" | "done" | "archived"; priority: "low" | "medium" | "high"; dueDate: string; labels: string[]; projectId: string }>) {
+    this.wizardTasks = this.wizardTasks.map((t) =>
+      t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
+    );
+    localStorage.setItem("openclaw.wizard.tasks", JSON.stringify(this.wizardTasks));
+  }
+
+  handleWizardUpdateTaskStatus(taskId: string, status: "todo" | "in_progress" | "testing" | "done" | "archived") {
+    this.handleWizardUpdateTask(taskId, { status });
+  }
+
+  handleWizardDeleteTask(taskId: string) {
+    this.wizardTasks = this.wizardTasks.filter((t) => t.id !== taskId);
+    localStorage.setItem("openclaw.wizard.tasks", JSON.stringify(this.wizardTasks));
+  }
+
+  handleWizardAddNote(content: string) {
+    const note = {
+      id: `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      content,
+      seenByAgent: false,
+      createdAt: new Date().toISOString(),
+    };
+    this.wizardNotes = [...this.wizardNotes, note];
+    localStorage.setItem("openclaw.wizard.notes", JSON.stringify(this.wizardNotes));
+  }
+
+  handleWizardUpdateNote(noteId: string, content: string) {
+    this.wizardNotes = this.wizardNotes.map((n) => (n.id === noteId ? { ...n, content } : n));
+    localStorage.setItem("openclaw.wizard.notes", JSON.stringify(this.wizardNotes));
+  }
+
+  handleWizardDeleteNote(noteId: string) {
+    this.wizardNotes = this.wizardNotes.filter((n) => n.id !== noteId);
+    localStorage.setItem("openclaw.wizard.notes", JSON.stringify(this.wizardNotes));
+  }
+
+  handleWizardAddTaskAttachment(taskId: string, file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const attachment = {
+        id: `att-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: file.name,
+        url: reader.result as string,
+        type: file.type.startsWith("image/") ? "image" : "file",
+      };
+      this.handleWizardUpdateTask(taskId, {
+        attachments: [...(this.wizardTasks.find((t) => t.id === taskId)?.attachments || []), attachment],
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  handleWizardAddTaskChecklistItem(taskId: string, text: string) {
+    const task = this.wizardTasks.find((t) => t.id === taskId);
+    if (task) {
+      const item = {
+        id: `check-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        text,
+        completed: false,
+      };
+      this.handleWizardUpdateTask(taskId, {
+        checklist: [...(task.checklist || []), item],
+      });
+    }
+  }
+
+  handleWizardUpdateChecklistItem(taskId: string, itemId: string, updates: Partial<{ text: string; completed: boolean }>) {
+    const task = this.wizardTasks.find((t) => t.id === taskId);
+    if (task) {
+      this.handleWizardUpdateTask(taskId, {
+        checklist: (task.checklist || []).map((item) => (item.id === itemId ? { ...item, ...updates } : item)),
+      });
+    }
+  }
+
+  handleWizardDeleteChecklistItem(taskId: string, itemId: string) {
+    const task = this.wizardTasks.find((t) => t.id === taskId);
+    if (task) {
+      this.handleWizardUpdateTask(taskId, {
+        checklist: (task.checklist || []).filter((item) => item.id !== itemId),
+      });
+    }
+  }
+
+  handleWizardRefresh() {
+    try {
+      const storedTasks = localStorage.getItem("openclaw.wizard.tasks");
+      if (storedTasks) this.wizardTasks = JSON.parse(storedTasks);
+      const storedNotes = localStorage.getItem("openclaw.wizard.notes");
+      if (storedNotes) this.wizardNotes = JSON.parse(storedNotes);
+      const storedProjects = localStorage.getItem("openclaw.wizard.projects");
+      if (storedProjects) this.wizardProjects = JSON.parse(storedProjects);
+    } catch {
+      // Ignore parse errors
+    }
+  }
+
+  handleWizardAddProject(name: string, description?: string) {
+    const project = {
+      id: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      description,
+      status: "active" as const,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      tags: [],
+    };
+    this.wizardProjects = [...this.wizardProjects, project];
+    localStorage.setItem("openclaw.wizard.projects", JSON.stringify(this.wizardProjects));
+  }
+
+  handleWizardDeleteProject(projectId: string) {
+    this.wizardProjects = this.wizardProjects.filter((p) => p.id !== projectId);
+    localStorage.setItem("openclaw.wizard.projects", JSON.stringify(this.wizardProjects));
   }
 
   render() {
