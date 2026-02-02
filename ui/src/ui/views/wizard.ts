@@ -503,7 +503,7 @@ export function renderWizard(props: WizardProps) {
               <button
                 type="button"
                 class="btn"
-                style="background: transparent; border: 1px solid #374151; color: #9ca3af;"
+                style="background: transparent; border: 1px solid #374151; color: #9ca3af; padding: 0.75rem 1.5rem; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 500;"
                 @click=${() => {
                   showTaskModal = false;
                   editingTask = null;
@@ -514,7 +514,7 @@ export function renderWizard(props: WizardProps) {
               <button
                 type="submit"
                 class="btn"
-                style="background: #a855f7; color: white; border: none;"
+                style="background: #a855f7; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600; min-width: 120px;"
               >
                 ${isNewTask ? "Create Task" : "Save Changes"}
               </button>
