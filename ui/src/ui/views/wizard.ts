@@ -1222,6 +1222,7 @@ export function renderWizard(props: WizardProps) {
         </div>
       </div>
     </div>
+    </div>
   `;
 }
 
