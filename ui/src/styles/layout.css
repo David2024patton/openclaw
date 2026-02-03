@@ -197,7 +197,8 @@
   overflow-x: hidden;
   padding: 16px 12px;
   background: var(--bg);
-  scrollbar-width: none; /* Firefox */
+  scrollbar-width: thin; /* Firefox - show thin scrollbar */
+  scrollbar-color: var(--border) transparent; /* Firefox scrollbar colors */
   transition:
     width var(--shell-focus-duration) var(--shell-focus-ease),
     padding var(--shell-focus-duration) var(--shell-focus-ease),
@@ -205,8 +206,22 @@
   min-height: 0;
 }
 
+/* Custom scrollbar for Chrome/Safari */
 .nav::-webkit-scrollbar {
-  display: none; /* Chrome/Safari */
+  width: 6px;
+}
+
+.nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.nav::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 
 .shell--chat-focus .nav {

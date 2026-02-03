@@ -94,4 +94,11 @@ export function handleUpdated(host: LifecycleHost, changed: Map<PropertyKey, unk
       );
     }
   }
+  // Auto-load workspace prompts when prompts tab is selected
+  if (changed.has("tab") && host.tab === "prompts") {
+    const app = host as unknown as { handleWorkspacePromptsLoad?: () => Promise<void> };
+    if (app.handleWorkspacePromptsLoad) {
+      app.handleWorkspacePromptsLoad();
+    }
+  }
 }

@@ -1,6 +1,29 @@
 import { html, nothing } from "lit";
 import type { SessionsListResult } from "../types";
 import { formatAgo } from "../format";
+import { renderProjectEditorModal, renderAgentMonitoringWindows } from "./wizard-project-editor.js";
+import { PREDEFINED_LABELS, getLabelById, type TaskLabel } from "./wizard-labels.js";
+
+export type WizardTaskEditLog = {
+  id: string;
+  timestamp: string;
+  agentId: string;
+  agentName: string;
+  agentType: string;
+  action: string;
+  field?: string;
+  oldValue?: string;
+  newValue?: string;
+  description?: string;
+};
+
+export type WizardTaskValidation = {
+  section: string;
+  isValid: boolean;
+  checkedAt: string;
+  checkedBy?: string;
+  message?: string;
+};
 
 export type WizardTask = {
   id: string;
@@ -14,6 +37,12 @@ export type WizardTask = {
   labels?: string[];
   checklist?: Array<{ id: string; text: string; completed: boolean }>;
   attachments?: Array<{ id: string; name: string; url: string; type: string }>;
+  projectId?: string;
+  editLog?: WizardTaskEditLog[];
+  validations?: WizardTaskValidation[];
+  filePath?: string;
+  createdBy?: { agentId: string; agentName: string; agentType: string };
+  workedBy?: Array<{ agentId: string; agentName: string; agentType: string; workedAt: string }>;
 };
 
 export type WizardNote = {
@@ -49,6 +78,12 @@ export type WizardProject = {
   createdAt: string;
   updatedAt: string;
   tags?: string[];
+  prompt?: string; // Original user prompt - always available to LLM
+  research?: string; // LLM research and organization
+  features?: string; // Features breakdown that can be converted to tasks
+  enhancedPrompt?: string; // AI-enhanced version of prompt
+  manualApprovalRequired?: boolean; // Toggle for manual task approval
+  selectedModel?: string; // Per-project LLM selection
 };
 
 export type WizardProps = {
@@ -60,7 +95,7 @@ export type WizardProps = {
   deliverables: WizardDeliverable[];
   actionLog: WizardActionLogEntry[];
   onAddTask: (title: string, description?: string, projectId?: string, priority?: "low" | "medium" | "high", dueDate?: string, labels?: string[]) => void;
-  onUpdateTask: (taskId: string, updates: Partial<{ title: string; description: string; status: "todo" | "in_progress" | "testing" | "done" | "archived"; priority: "low" | "medium" | "high"; dueDate: string; labels: string[]; projectId: string }>) => void;
+  onUpdateTask: (taskId: string, updates: Partial<{ title: string; description: string; status: "todo" | "in_progress" | "testing" | "done" | "archived"; priority: "low" | "medium" | "high"; dueDate: string; labels: string[]; projectId: string; attachments: Array<{ id: string; name: string; url: string; type: string }>; checklist: Array<{ id: string; text: string; completed: boolean }> }>) => void;
   onAddNote: (content: string) => void;
   onUpdateNote: (noteId: string, content: string) => void;
   onDeleteNote: (noteId: string) => void;
@@ -71,6 +106,16 @@ export type WizardProps = {
   onUpdateChecklistItem: (taskId: string, itemId: string, updates: Partial<{ text: string; completed: boolean }>) => void;
   onDeleteChecklistItem: (taskId: string, itemId: string) => void;
   onRefresh: () => void;
+  onAddProject: (name: string, description?: string) => void;
+  onUpdateProject: (projectId: string, updates: Partial<WizardProject>) => void;
+  onDeleteProject: (projectId: string) => void;
+  onEnhancePrompt?: (projectId: string) => Promise<void>;
+  onEnhanceResearch?: (projectId: string) => Promise<void>;
+  onGenerateTasksFromFeatures?: (projectId: string) => void;
+  editingProjectId?: string | null;
+  projectEditTab?: "prompt" | "research" | "features" | "details";
+  onSetEditingProject?: (projectId: string | null, tab?: "prompt" | "research" | "features" | "details") => void;
+  onClearCache?: () => void;
 };
 
 let selectedTaskId: string | null = null;
@@ -81,6 +126,8 @@ let showTaskModal: boolean = false;
 let editingTask: Partial<WizardTask> | null = null;
 let showCardActionsMenu: string | null = null; // Task ID for which card actions menu is open
 let showListActionsMenu: string | null = null; // Status for which list actions menu is open
+// editingProjectId and projectEditTab are now passed as props from the component state
+let showTaskAuditLog: Record<string, boolean> = {}; // Track which tasks have audit log expanded
 let listColors: Record<string, string> = {
   todo: "#a855f7",
   in_progress: "#f59e0b",
@@ -147,10 +194,9 @@ export function renderWizard(props: WizardProps) {
 
     return html`
       <div
-        class="task-card"
+        class="mc-task-card ${task.status === 'in_progress' ? 'mc-task-card--active' : ''}"
         draggable="true"
         @dragstart=${(e: DragEvent) => handleDragStart(e, task.id)}
-        style="padding: 0.75rem; margin-bottom: 0.5rem; background: rgba(168, 85, 247, 0.1); border-radius: 0.5rem; cursor: grab; position: relative;"
         @click=${() => {
           selectedTaskId = task.id;
         }}
@@ -159,74 +205,54 @@ export function renderWizard(props: WizardProps) {
           ? html`
               <div style="display: flex; gap: 0.25rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
                 ${task.labels.map(
-                  (label) => html`
-                    <span
-                      style="background: ${getLabelColor(label)}; color: white; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 500;"
-                    >
-                      ${label}
-                    </span>
-                  `
+                  (labelId) => {
+                    const label = getLabelById(labelId);
+                    if (!label) return nothing;
+                    return html`
+                      <span
+                        style="background: ${label.color}; color: white; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;"
+                        title="${label.description}"
+                      >
+                        ${label.name}
+                      </span>
+                    `;
+                  }
                 )}
               </div>
             `
           : nothing}
-        <div style="font-weight: 500; display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.25rem;">
+        
+        <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-strong); line-height: 1.3; margin-bottom: 0.4rem; display: flex; justify-content: space-between; align-items: start;">
           <span>${task.title}</span>
-          <div style="display: flex; gap: 0.25rem;">
-            ${task.priority
-              ? html`
-                  <span
-                    style="background: ${getPriorityColor(task.priority)}; color: white; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.625rem; font-weight: 600;"
-                  >
-                    ${task.priority.toUpperCase()}
-                  </span>
-                `
-              : nothing}
-            <button
-              class="btn btn-xs"
-              style="background: transparent; color: #ef4444; padding: 0.25rem;"
-              @click=${(e: Event) => {
-                e.stopPropagation();
-                props.onDeleteTask(task.id);
-              }}
-            >
-              ×
-            </button>
+          ${task.priority
+            ? html`
+                <span
+                  style="color: ${getPriorityColor(task.priority)}; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; border: 1px solid ${getPriorityColor(task.priority)}; padding: 1px 4px; border-radius: 3px;"
+                >
+                  ${task.priority}
+                </span>
+              `
+            : nothing}
+        </div>
+
+        ${task.description
+          ? html`<div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 0.75rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${task.description}</div>`
+          : nothing}
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem;">
+          <div style="display: flex; gap: 8px;">
+            ${totalChecklist > 0 ? html`<span style="font-size: 0.75rem; color: var(--muted-strong);">✓ ${completedChecklist}/${totalChecklist}</span>` : nothing}
+            ${task.attachments?.length ? html`<span style="font-size: 0.75rem; color: var(--muted-strong);">📎 ${task.attachments.length}</span>` : nothing}
+          </div>
+          <div style="font-size: 0.7rem; font-family: var(--mono); opacity: 0.5;">
+            ${formatAgo(new Date(task.createdAt).getTime())}
           </div>
         </div>
-        ${task.description
-          ? html`<div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">${task.description}</div>`
-          : nothing}
-        ${task.dueDate
-          ? html`
-              <div
-                style="font-size: 0.75rem; color: ${isOverdue ? "#ef4444" : "#9ca3af"}; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.25rem;"
-              >
-                <span>📅</span>
-                <span>${new Date(task.dueDate).toLocaleDateString()}</span>
-                ${isOverdue ? html`<span style="color: #ef4444;">⚠ Overdue</span>` : nothing}
-              </div>
-            `
-          : nothing}
-        ${totalChecklist > 0
-          ? html`
-              <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">
-                ✓ ${completedChecklist}/${totalChecklist} checklist items
-              </div>
-            `
-          : nothing}
-        ${task.attachments && task.attachments.length > 0
-          ? html`
-              <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">
-                📎 ${task.attachments.length} attachment${task.attachments.length > 1 ? "s" : ""}
-              </div>
-            `
-          : nothing}
-        <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.25rem;">${formatAgo(new Date(task.createdAt).getTime())}</div>
-        <div style="position: absolute; top: 0.5rem; right: 0.5rem;">
+        
+        <div style="position: absolute; top: 0.25rem; right: 0.25rem;">
           <button
             class="btn btn-xs"
-            style="background: rgba(0, 0, 0, 0.3); color: #9ca3af; padding: 0.25rem 0.5rem; border-radius: 0.25rem; opacity: 0.7;"
+            style="background: transparent; color: var(--muted); border: none; padding: 2px;"
             @click=${(e: Event) => {
               e.stopPropagation();
               showCardActionsMenu = showCardActionsMenu === task.id ? null : task.id;
@@ -234,72 +260,6 @@ export function renderWizard(props: WizardProps) {
           >
             ⋮
           </button>
-          ${showCardActionsMenu === task.id
-            ? html`
-                <div
-                  style="position: absolute; top: 1.75rem; right: 0; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; padding: 0.5rem; min-width: 180px; z-index: 1000; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);"
-                  @click=${(e: Event) => e.stopPropagation()}
-                >
-                  <div style="padding: 0.5rem; font-weight: 600; color: #d1d5db; border-bottom: 1px solid #374151; margin-bottom: 0.5rem; font-size: 0.875rem;">Card actions</div>
-                  <button
-                    class="btn btn-sm"
-                    style="width: 100%; justify-content: flex-start; background: transparent; color: #d1d5db; padding: 0.5rem; font-size: 0.875rem;"
-                    @click=${() => {
-                      selectedTaskId = task.id;
-                      showCardActionsMenu = null;
-                    }}
-                  >
-                    📝 Open
-                  </button>
-                  <button
-                    class="btn btn-sm"
-                    style="width: 100%; justify-content: flex-start; background: transparent; color: #d1d5db; padding: 0.5rem; font-size: 0.875rem;"
-                    @click=${() => {
-                      const statuses = ["todo", "in_progress", "testing", "done", "archived"];
-                      const currentIndex = statuses.indexOf(task.status);
-                      const nextStatus = statuses[(currentIndex + 1) % statuses.length];
-                      props.onUpdateTaskStatus(task.id, nextStatus as any);
-                      showCardActionsMenu = null;
-                    }}
-                  >
-                    ➡️ Move
-                  </button>
-                  <button
-                    class="btn btn-sm"
-                    style="width: 100%; justify-content: flex-start; background: transparent; color: #d1d5db; padding: 0.5rem; font-size: 0.875rem;"
-                    @click=${() => {
-                      props.onAddTask(task.title, task.description, task.projectId, task.priority, task.dueDate, task.labels);
-                      showCardActionsMenu = null;
-                    }}
-                  >
-                    📋 Copy
-                  </button>
-                  <div style="border-top: 1px solid #374151; margin: 0.5rem 0;"></div>
-                  <button
-                    class="btn btn-sm"
-                    style="width: 100%; justify-content: flex-start; background: transparent; color: #ef4444; padding: 0.5rem; font-size: 0.875rem;"
-                    @click=${() => {
-                      props.onUpdateTaskStatus(task.id, "archived");
-                      showCardActionsMenu = null;
-                    }}
-                  >
-                    📦 Archive
-                  </button>
-                  <button
-                    class="btn btn-sm"
-                    style="width: 100%; justify-content: flex-start; background: transparent; color: #ef4444; padding: 0.5rem; font-size: 0.875rem;"
-                    @click=${() => {
-                      if (confirm("Delete this task permanently?")) {
-                        props.onDeleteTask(task.id);
-                      }
-                      showCardActionsMenu = null;
-                    }}
-                  >
-                    🗑️ Delete
-                  </button>
-                </div>
-              `
-            : nothing}
         </div>
       </div>
     `;
@@ -313,7 +273,7 @@ export function renderWizard(props: WizardProps) {
     
     return html`
       <div
-        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 2rem;"
+        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 1rem; overflow: hidden;"
         @click=${(e: Event) => {
           if ((e.target as HTMLElement).style.position === "fixed") {
             showTaskModal = false;
@@ -322,16 +282,17 @@ export function renderWizard(props: WizardProps) {
         }}
       >
         <div
-          style="background: #1f2937; border-radius: 0.75rem; padding: 2rem; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);"
+          style="background: #1f2937; border-radius: 0.75rem; width: 100%; max-width: min(700px, 95vw); height: 100%; max-height: min(90vh, calc(100vh - 2rem)); display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);"
           @click=${(e: Event) => e.stopPropagation()}
         >
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h2 style="margin: 0; font-size: 1.75rem; font-weight: 600; color: white;">
+          <!-- Header (fixed) -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; border-bottom: 1px solid #374151; flex-shrink: 0;">
+            <h2 style="margin: 0; font-size: 1.5rem; font-weight: 600; color: white;">
               ${isNewTask ? "Create New Task" : "Edit Task"}
             </h2>
             <button
               class="btn btn-sm"
-              style="background: transparent; color: #9ca3af; font-size: 1.5rem; padding: 0.25rem 0.5rem;"
+              style="background: transparent; color: #9ca3af; font-size: 1.5rem; padding: 0.25rem 0.5rem; cursor: pointer;"
               @click=${() => {
                 showTaskModal = false;
                 editingTask = null;
@@ -340,6 +301,9 @@ export function renderWizard(props: WizardProps) {
               ✕
             </button>
           </div>
+          
+          <!-- Scrollable Content Area -->
+          <div style="flex: 1; overflow-y: auto; padding: 1.5rem;">
 
           <form
             @submit=${(e: Event) => {
@@ -351,13 +315,48 @@ export function renderWizard(props: WizardProps) {
               const projectId = formData.get("projectId") as string;
               const priority = formData.get("priority") as "low" | "medium" | "high" | "";
               const dueDate = formData.get("dueDate") as string;
-              const labelsInput = formData.get("labels") as string;
+              // Get labels from hidden JSON input (from multi-select)
+              const labelsJson = formData.get("labels-json") as string;
+              let labels: string[] = [];
+              if (labelsJson) {
+                try {
+                  labels = JSON.parse(labelsJson);
+                } catch {
+                  // Fallback to comma-separated if JSON parse fails
+                  const labelsInput = formData.get("labels") as string;
+                  labels = labelsInput
+                    ? labelsInput.split(",").map((l) => l.trim()).filter(Boolean)
+                    : [];
+                }
+              }
               
               if (!title.trim()) return;
               
-              const labels = labelsInput
-                ? labelsInput.split(",").map((l) => l.trim()).filter(Boolean)
-                : [];
+              // Auto-suggest labels if none selected (for new tasks only) - only from predefined labels
+              if (isNewTask && labels.length === 0 && title) {
+                const text = `${title} ${description || ""}`.toLowerCase();
+                const suggested: string[] = [];
+                
+                // Match against predefined labels only
+                for (const label of PREDEFINED_LABELS) {
+                  const keywords = label.description.toLowerCase() + " " + label.name.toLowerCase();
+                  if (text.includes(label.id) || keywords.split(" ").some(kw => text.includes(kw))) {
+                    suggested.push(label.id);
+                  }
+                }
+                
+                // Specific keyword matching for predefined labels
+                if (text.match(/\b(bug|error|fix|broken|issue|crash)\b/)) suggested.push("bug");
+                if (text.match(/\b(feature|add|implement|new|create|build)\b/)) suggested.push("feature");
+                if (text.match(/\b(refactor|improve|optimize|cleanup)\b/)) suggested.push("refactor");
+                if (text.match(/\b(test|testing|unit test|qa)\b/)) suggested.push("test");
+                if (text.match(/\b(documentation|docs|readme|comment)\b/)) suggested.push("documentation");
+                if (text.match(/\b(research|investigate|find out)\b/)) suggested.push("research");
+                if (text.match(/\b(deploy|deployment|release|publish)\b/)) suggested.push("deployment");
+                if (text.match(/\b(security|secure|vulnerability|auth|encryption)\b/)) suggested.push("security");
+                
+                labels = [...new Set(suggested.filter(id => PREDEFINED_LABELS.some(l => l.id === id)))]; // Only keep valid predefined labels
+              }
               
               if (isNewTask) {
                 props.onAddTask(
@@ -481,20 +480,61 @@ export function renderWizard(props: WizardProps) {
               </div>
             </div>
 
-            <!-- Labels -->
+            <!-- Labels / Tags -->
             <div style="margin-bottom: 1.5rem;">
               <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #d1d5db; font-size: 0.875rem;">
-                Labels
+                Labels <span style="color: #9ca3af; font-size: 0.75rem;">(Select from predefined list)</span>
               </label>
-              <input
-                type="text"
-                name="labels"
-                .value=${(task.labels || []).join(", ")}
-                placeholder="Enter labels separated by commas (e.g., bug, frontend, urgent)"
-                style="background: #111827; border: 1px solid #374151; color: white; padding: 0.75rem; border-radius: 0.5rem; width: 100%; font-size: 1rem;"
-              />
-              <div style="margin-top: 0.5rem; color: #9ca3af; font-size: 0.75rem;">
-                Separate multiple labels with commas
+              <div style="position: relative;">
+                <select
+                  name="labels"
+                  multiple
+                  size="8"
+                  style="background: #111827; border: 1px solid #374151; color: white; padding: 0.75rem; border-radius: 0.5rem; width: 100%; font-size: 0.875rem; min-height: 150px;"
+                  @change=${(e: Event) => {
+                    const select = e.target as HTMLSelectElement;
+                    const selected = Array.from(select.selectedOptions).map(opt => opt.value);
+                    // Store selected labels in a hidden input for form submission
+                    const hiddenInput = document.querySelector('input[name="labels-json"]') as HTMLInputElement;
+                    if (hiddenInput) {
+                      hiddenInput.value = JSON.stringify(selected);
+                    }
+                  }}
+                >
+                  ${PREDEFINED_LABELS.map(
+                    (label) => html`
+                      <option
+                        value="${label.id}"
+                        ?selected=${(task.labels || []).includes(label.id)}
+                        style="background: ${label.color}; color: white; padding: 0.5rem;"
+                      >
+                        ${label.name} - ${label.description}
+                      </option>
+                    `
+                  )}
+                </select>
+                <input type="hidden" name="labels-json" .value=${JSON.stringify(task.labels || [])} />
+                <div style="margin-top: 0.5rem; color: #9ca3af; font-size: 0.75rem;">
+                  Hold Ctrl/Cmd (Windows) or Cmd (Mac) to select multiple labels. Only these predefined labels can be used.
+                </div>
+                <!-- Show selected labels with colors -->
+                ${(task.labels || []).length > 0
+                  ? html`
+                      <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        ${(task.labels || []).map((labelId) => {
+                          const label = getLabelById(labelId);
+                          if (!label) return nothing;
+                          return html`
+                            <span
+                              style="background: ${label.color}; color: white; padding: 0.25rem 0.75rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 500; display: inline-flex; align-items: center; gap: 0.25rem;"
+                            >
+                              ${label.name}
+                            </span>
+                          `;
+                        })}
+                      </div>
+                    `
+                  : nothing}
               </div>
             </div>
 
@@ -530,7 +570,7 @@ export function renderWizard(props: WizardProps) {
 
     return html`
       <div
-        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 2rem;"
+        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; overflow: hidden;"
         @click=${(e: Event) => {
           if ((e.target as HTMLElement).style.position === "fixed") {
             selectedTaskId = null;
@@ -538,10 +578,11 @@ export function renderWizard(props: WizardProps) {
         }}
       >
         <div
-          style="background: #1f2937; border-radius: 0.5rem; padding: 1.5rem; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto;"
+          style="background: #1f2937; border-radius: 0.75rem; width: 100%; max-width: min(700px, 95vw); height: 100%; max-height: min(90vh, calc(100vh - 2rem)); display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);"
           @click=${(e: Event) => e.stopPropagation()}
         >
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+          <!-- Header (fixed) -->
+          <div style="display: flex; justify-content: space-between; align-items: start; padding: 1.5rem; border-bottom: 1px solid #374151; flex-shrink: 0;">
             <h2 style="margin: 0; font-size: 1.5rem; font-weight: 600;">
               ${editingTaskId === selectedTask.id
                 ? html`
@@ -574,7 +615,7 @@ export function renderWizard(props: WizardProps) {
             </h2>
             <button
               class="btn btn-sm"
-              style="background: transparent; color: #9ca3af;"
+              style="background: transparent; color: #9ca3af; cursor: pointer;"
               @click=${() => {
                 selectedTaskId = null;
               }}
@@ -582,6 +623,9 @@ export function renderWizard(props: WizardProps) {
               ✕
             </button>
           </div>
+          
+          <!-- Scrollable Content Area -->
+          <div style="flex: 1; overflow-y: auto; padding: 1.5rem;">
 
           <div style="margin-bottom: 1rem;">
             <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #9ca3af;">Description</label>
@@ -622,46 +666,104 @@ export function renderWizard(props: WizardProps) {
             />
           </div>
 
+          <!-- Project Info -->
+          ${selectedTask.projectId
+            ? html`
+                <div style="margin-bottom: 1rem; padding: 0.75rem; background: rgba(168, 85, 247, 0.1); border-radius: 0.5rem; border-left: 3px solid #a855f7;">
+                  <div style="font-weight: 500; color: #d1d5db; margin-bottom: 0.25rem; font-size: 0.875rem;">📁 Project</div>
+                  <div style="color: #a855f7; font-size: 0.875rem;">
+                    ${props.projects.find((p) => p.id === selectedTask.projectId)?.name || "Unknown Project"}
+                  </div>
+                </div>
+              `
+            : nothing}
+          
+          <!-- Creator & Worker Info -->
+          <div style="margin-bottom: 1rem; padding: 0.75rem; background: rgba(59, 130, 246, 0.1); border-radius: 0.5rem; border-left: 3px solid #3b82f6;">
+            ${selectedTask.createdBy
+              ? html`
+                  <div style="margin-bottom: 0.5rem;">
+                    <div style="font-weight: 500; color: #d1d5db; margin-bottom: 0.25rem; font-size: 0.875rem;">👤 Created By</div>
+                    <div style="color: #3b82f6; font-size: 0.875rem;">
+                      ${selectedTask.createdBy.agentName} <span style="color: #9ca3af;">(${selectedTask.createdBy.agentType})</span>
+                    </div>
+                  </div>
+                `
+              : nothing}
+            ${selectedTask.workedBy && selectedTask.workedBy.length > 0
+              ? html`
+                  <div>
+                    <div style="font-weight: 500; color: #d1d5db; margin-bottom: 0.25rem; font-size: 0.875rem;">⚡ Worked On By</div>
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                      ${selectedTask.workedBy.map(
+                        (worker) => html`
+                          <div style="color: #3b82f6; font-size: 0.875rem;">
+                            ${worker.agentName} <span style="color: #9ca3af;">(${worker.agentType})</span>
+                            <span style="color: #6b7280; font-size: 0.75rem; margin-left: 0.5rem;">
+                              ${formatAgo(new Date(worker.workedAt).getTime())}
+                            </span>
+                          </div>
+                        `
+                      )}
+                    </div>
+                  </div>
+                `
+              : nothing}
+          </div>
+
           <div style="margin-bottom: 1rem;">
             <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #9ca3af;">Labels</label>
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
               ${(selectedTask.labels || []).map(
-                (label) => html`
-                  <span
-                    style="background: ${getLabelColor(label)}; color: white; padding: 0.25rem 0.75rem; border-radius: 0.25rem; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem;"
-                  >
-                    ${label}
-                    <button
-                      @click=${() => {
-                        props.onUpdateTask(selectedTask.id, {
-                          labels: (selectedTask.labels || []).filter((l) => l !== label),
-                        });
-                      }}
-                      style="background: transparent; border: none; color: white; cursor: pointer; padding: 0;"
+                (labelId) => {
+                  const label = getLabelById(labelId);
+                  if (!label) return nothing;
+                  return html`
+                    <span
+                      style="background: ${label.color}; color: white; padding: 0.25rem 0.75rem; border-radius: 0.25rem; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem;"
+                      title="${label.description}"
                     >
-                      ×
-                    </button>
-                  </span>
-                `
+                      ${label.name}
+                      <button
+                        @click=${() => {
+                          props.onUpdateTask(selectedTask.id, {
+                            labels: (selectedTask.labels || []).filter((l) => l !== labelId),
+                          });
+                        }}
+                        style="background: transparent; border: none; color: white; cursor: pointer; padding: 0; font-size: 1rem; font-weight: bold;"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  `;
+                }
               )}
             </div>
-            <input
-              type="text"
-              placeholder="Add label (press Enter)"
-              @keydown=${(e: KeyboardEvent) => {
-                if (e.key === "Enter") {
-                  const input = e.target as HTMLInputElement;
-                  const label = input.value.trim();
-                  if (label) {
-                    props.onUpdateTask(selectedTask.id, {
-                      labels: [...(selectedTask.labels || []), label],
-                    });
-                    input.value = "";
-                  }
-                }
+            <select
+              multiple
+              size="5"
+              style="background: #111827; border: 1px solid #374151; color: white; padding: 0.5rem; border-radius: 0.25rem; width: 100%; font-size: 0.875rem;"
+              @change=${(e: Event) => {
+                const select = e.target as HTMLSelectElement;
+                const selected = Array.from(select.selectedOptions).map(opt => opt.value);
+                const currentLabels = selectedTask.labels || [];
+                const newLabels = [...new Set([...currentLabels, ...selected])];
+                props.onUpdateTask(selectedTask.id, { labels: newLabels });
+                // Clear selection
+                Array.from(select.options).forEach(opt => opt.selected = false);
               }}
-              style="background: transparent; border: 1px solid #374151; color: white; padding: 0.5rem; border-radius: 0.25rem; width: 100%;"
-            />
+            >
+              ${PREDEFINED_LABELS.filter((label) => !(selectedTask.labels || []).includes(label.id)).map(
+                (label) => html`
+                  <option value="${label.id}" style="background: ${label.color}; color: white;">
+                    ${label.name} - ${label.description}
+                  </option>
+                `
+              )}
+            </select>
+            <div style="margin-top: 0.5rem; color: #9ca3af; font-size: 0.75rem;">
+              Select labels to add. Hold Ctrl/Cmd to select multiple. Only predefined labels can be used.
+            </div>
           </div>
 
           <div style="margin-bottom: 1rem;">
@@ -752,6 +854,106 @@ export function renderWizard(props: WizardProps) {
               />
             </label>
           </div>
+
+          <!-- Audit Log & Validation Section (Collapsible) -->
+          <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid #374151;">
+            <button
+              @click=${() => {
+                showTaskAuditLog[selectedTask.id] = !showTaskAuditLog[selectedTask.id];
+              }}
+              style="width: 100%; display: flex; align-items: center; justify-content: space-between; background: transparent; border: 1px solid #374151; color: #d1d5db; padding: 0.75rem 1rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; font-weight: 500;"
+            >
+              <span>📋 Audit Log & Validation</span>
+              <span>${showTaskAuditLog[selectedTask.id] ? "▼" : "▶"}</span>
+            </button>
+            
+            ${showTaskAuditLog[selectedTask.id]
+              ? html`
+                  <div style="margin-top: 1rem; padding: 1rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.5rem;">
+                    <!-- Edit Log -->
+                    <div style="margin-bottom: 1.5rem;">
+                      <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 600; color: #d1d5db;">Edit History</h3>
+                      ${selectedTask.editLog && selectedTask.editLog.length > 0
+                        ? html`
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 300px; overflow-y: auto;">
+                              ${selectedTask.editLog.map(
+                                (log) => html`
+                                  <div style="padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 0.25rem; border-left: 3px solid #a855f7;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                                      <div>
+                                        <div style="font-weight: 600; color: #d1d5db; font-size: 0.875rem;">
+                                          ${log.agentName} <span style="color: #9ca3af; font-weight: normal;">(${log.agentType})</span>
+                                        </div>
+                                        <div style="color: #9ca3af; font-size: 0.75rem; margin-top: 0.25rem;">
+                                          ${new Date(log.timestamp).toLocaleString()}
+                                        </div>
+                                      </div>
+                                      <span style="background: ${log.agentType.includes("llm") ? "#3b82f6" : log.agentType.includes("agent") ? "#10b981" : "#6b7280"}; color: white; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.625rem; font-weight: 600; text-transform: uppercase;">
+                                        ${log.agentType}
+                                      </span>
+                                    </div>
+                                    <div style="color: #d1d5db; font-size: 0.8125rem;">
+                                      <strong>${log.action}</strong>${log.description ? `: ${log.description}` : ""}
+                                    </div>
+                                    ${log.field
+                                      ? html`
+                                          <div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.25rem; font-size: 0.75rem; color: #9ca3af;">
+                                            <div><strong>Field:</strong> ${log.field}</div>
+                                            ${log.oldValue ? html`<div><strong>From:</strong> ${log.oldValue}</div>` : nothing}
+                                            ${log.newValue ? html`<div><strong>To:</strong> ${log.newValue}</div>` : nothing}
+                                          </div>
+                                        `
+                                      : nothing}
+                                  </div>
+                                `,
+                              )}
+                            </div>
+                          `
+                        : html`<div style="color: #9ca3af; font-size: 0.875rem; font-style: italic;">No edit history yet</div>`}
+                    </div>
+
+                    <!-- Validation Checks -->
+                    <div>
+                      <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 600; color: #d1d5db;">Validation Status</h3>
+                      ${selectedTask.validations && selectedTask.validations.length > 0
+                        ? html`
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                              ${selectedTask.validations.map(
+                                (val) => html`
+                                  <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 0.25rem;">
+                                    <span style="font-size: 1.25rem;">${val.isValid ? "✅" : "❌"}</span>
+                                    <div style="flex: 1;">
+                                      <div style="font-weight: 500; color: #d1d5db; font-size: 0.875rem; text-transform: capitalize;">
+                                        ${val.section}
+                                      </div>
+                                      <div style="color: #9ca3af; font-size: 0.75rem; margin-top: 0.25rem;">
+                                        ${val.message || ""}
+                                      </div>
+                                    </div>
+                                    <div style="color: #6b7280; font-size: 0.625rem; text-align: right;">
+                                      ${new Date(val.checkedAt).toLocaleString()}
+                                    </div>
+                                  </div>
+                                `,
+                              )}
+                            </div>
+                          `
+                        : html`<div style="color: #9ca3af; font-size: 0.875rem; font-style: italic;">No validations run yet</div>`}
+                    </div>
+
+                    ${selectedTask.filePath
+                      ? html`
+                          <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(16, 185, 129, 0.1); border-radius: 0.25rem; border-left: 3px solid #10b981;">
+                            <div style="color: #10b981; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem;">📄 Task File</div>
+                            <div style="color: #9ca3af; font-size: 0.75rem; font-family: monospace;">${selectedTask.filePath}</div>
+                          </div>
+                        `
+                      : nothing}
+                  </div>
+                `
+              : nothing}
+          </div>
+          <!-- End Scrollable Content Area -->
         </div>
       </div>
     `;
@@ -778,21 +980,47 @@ export function renderWizard(props: WizardProps) {
       <!-- Projects Section -->
       <div class="card" style="margin-bottom: 1rem;">
         <div class="card-title" style="display: flex; align-items: center; justify-content: space-between;">
-          <span>
-            <span>📁</span> Projects (${props.projects.length})
-          </span>
-          <button
-            class="btn btn-sm"
-            @click=${() => {
-              const name = prompt("Project name:");
-              if (name) {
-                const description = prompt("Project description (optional):");
-                props.onAddProject(name, description || undefined);
-              }
-            }}
-          >
-            + Add Project
-          </button>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span>
+              <span>📁</span> Projects (${props.projects.length})
+            </span>
+            <button
+              class="btn btn-xs"
+              style="background: transparent; color: #9ca3af; padding: 0.25rem;"
+              title="About Projects"
+              @click=${() => {
+                alert(`Projects organize your work into separate contexts.\n\nEach project:\n- Creates its own folder structure (tasks, agents, research, logs, media, debug)\n- Can have its own GitHub repository\n- Can use a different LLM model\n- Can require manual approval for task progression\n- Stores tasks as individual markdown files\n\nProjects help agents understand context and work more effectively.`);
+              }}
+            >
+              ❓
+            </button>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            ${props.onClearCache
+              ? html`
+                  <button
+                    class="btn btn-sm"
+                    style="background: transparent; color: #9ca3af; border: 1px solid #374151;"
+                    @click=${() => props.onClearCache?.()}
+                    title="Clear all cached wizard data and reload page"
+                  >
+                    🗑️ Clear Cache
+                  </button>
+                `
+              : nothing}
+            <button
+              class="btn btn-sm"
+              @click=${() => {
+                const name = prompt("Project name:");
+                if (name) {
+                  const description = prompt("Project description (optional):");
+                  props.onAddProject(name, description || undefined);
+                }
+              }}
+            >
+              + Add Project
+            </button>
+          </div>
         </div>
         <div class="card-sub" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
           ${props.projects.map(
@@ -805,16 +1033,28 @@ export function renderWizard(props: WizardProps) {
                       ? html`<div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">${project.description}</div>`
                       : nothing}
                   </div>
-                  <button
-                    @click=${() => {
-                      if (confirm(`Delete project "${project.name}"?`)) {
-                        props.onDeleteProject(project.id);
-                      }
-                    }}
-                    style="background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 0.25rem; font-size: 1.25rem; font-weight: bold;"
-                  >
-                    ×
-                  </button>
+                  <div style="display: flex; gap: 0.25rem;">
+                    <button
+                      @click=${(e: Event) => {
+                        e.stopPropagation();
+                        props.onSetEditingProject?.(project.id, "details");
+                      }}
+                      style="background: transparent; border: none; color: #a855f7; cursor: pointer; padding: 0.25rem; font-size: 0.875rem;"
+                      title="Edit project"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      @click=${() => {
+                        if (confirm(`Delete project "${project.name}"?`)) {
+                          props.onDeleteProject(project.id);
+                        }
+                      }}
+                      style="background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 0.25rem; font-size: 1.25rem; font-weight: bold;"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
                 ${project.githubRepo
                   ? html`
@@ -834,6 +1074,19 @@ export function renderWizard(props: WizardProps) {
                       </div>
                     `
                   : html`<div style="font-size: 0.75rem; color: #6b7280; margin-bottom: 0.5rem;">No dev server</div>`}
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+                  ${props.onGenerateTasksFromFeatures
+                    ? html`
+                        <button
+                          class="btn btn-sm"
+                          style="background: #a855f7; color: #f9fafb; font-weight: 600; flex: 0 0 auto;"
+                          @click=${() => props.onGenerateTasksFromFeatures?.(project.id)}
+                        >
+                          ⚙ Generate tasks from features
+                        </button>
+                      `
+                    : nothing}
+                </div>
                 <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">
                   Status: ${project.status} • Created ${formatAgo(new Date(project.createdAt).getTime())}
                 </div>
@@ -848,221 +1101,161 @@ export function renderWizard(props: WizardProps) {
         </div>
       </div>
 
-      <!-- Agent Status Indicator -->
-      <div class="card" style="margin-bottom: 1rem;">
-        <div class="card-title" style="display: flex; align-items: center; gap: 0.5rem;">
-          <div class="status-indicator" style="width: 12px; height: 12px; border-radius: 50%; background: #10b981;"></div>
-          <span>Agent Status</span>
-        </div>
-        <div class="card-sub">
-          <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
-            <span>• Idle</span>
-            <button class="btn btn-sm" style="margin-left: auto;">Ready for tasks</button>
-          </div>
+      <!-- Active Operations Bar (Mission Control Style) -->
+      <div class="card" style="margin-bottom: 1.5rem; background: var(--bg-accent); border-bottom: 2px solid var(--accent-subtle);">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+           <div style="display: flex; align-items: center; gap: 1rem;">
+             <div class="mc-agent-badge ${tasksByStatus.in_progress.length > 0 ? 'mc-agent-badge--working' : ''}">
+               <span class="mc-status-indicator ${tasksByStatus.in_progress.length > 0 ? 'mc-status-indicator--working' : ''}" style="background: ${tasksByStatus.in_progress.length > 0 ? 'var(--ok)' : 'var(--muted)'};"></span>
+               ${tasksByStatus.in_progress.length > 0 ? 'SYSTEM ACTIVE' : 'SYSTEM IDLE'}
+             </div>
+             
+             ${tasksByStatus.in_progress.length > 0 
+               ? html`
+                   <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text);">
+                     <span style="opacity: 0.6;">Executing:</span>
+                     <span style="font-weight: 600;">${tasksByStatus.in_progress[0].title}</span>
+                     ${tasksByStatus.in_progress.length > 1 ? html`<span class="muted" style="font-size: 0.75rem;">+${tasksByStatus.in_progress.length - 1} more</span>` : nothing}
+                   </div>
+                 `
+               : html`<div style="font-size: 0.85rem; color: var(--muted);">Standing by for task assignment...</div>`
+             }
+           </div>
+
+           <div style="display: flex; gap: 1rem; align-items: center;">
+             <div style="display: flex; flex-direction: column; align-items: flex-end;">
+               <div style="font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">Throughput</div>
+               <div style="font-size: 0.9rem; font-weight: 700; font-family: var(--mono); color: var(--ok);">
+                 ${tasksByStatus.done.length} <span style="font-size: 0.7rem; font-weight: 400; opacity: 0.7;">COMPLETED</span>
+               </div>
+             </div>
+             
+             <div style="width: 1px; height: 24px; background: var(--border);"></div>
+
+             <div style="display: flex; flex-direction: column; align-items: flex-end;">
+               <div style="font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">Efficiency</div>
+               <div style="font-size: 0.9rem; font-weight: 700; font-family: var(--mono); color: var(--accent);">
+                 ${tasksByStatus.todo.length + tasksByStatus.in_progress.length + tasksByStatus.testing.length} <span style="font-size: 0.7rem; font-weight: 400; opacity: 0.7;">PENDING</span>
+               </div>
+             </div>
+           </div>
         </div>
       </div>
 
       <!-- Wizard Board (Kanban-style) -->
-      <div class="wizard-board" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1rem;">
+      <div
+        class="wizard-board"
+        style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1rem;"
+        @click=${() => {
+          showCardActionsMenu = null;
+          showListActionsMenu = null;
+        }}
+      >
         <!-- To Do Column -->
-        <div class="card" style="position: relative;">
-          <div class="card-title" style="color: ${listColors.todo}; display: flex; align-items: center; justify-content: space-between;">
-            <span>
-              <span>📋</span> To Do (${tasksByStatus.todo.length})
-            </span>
-            <button
-              class="btn btn-sm"
-              style="background: transparent; color: ${listColors.todo}; padding: 0.25rem;"
-              @click=${(e: Event) => {
-                e.stopPropagation();
-                showListActionsMenu = showListActionsMenu === "todo" ? null : "todo";
-              }}
-            >
-              ⋮
-            </button>
+        <div class="card" style="position: relative; background: var(--chrome);">
+          <div class="mc-column-header" style="border-top: 2px solid ${listColors.todo}; color: ${listColors.todo};">
+            <span>TO DO</span>
+            <span class="mc-agent-badge">${tasksByStatus.todo.length}</span>
           </div>
-          ${showListActionsMenu === "todo"
-            ? html`
-                <div
-                  style="position: absolute; top: 2.5rem; left: 0; right: 0; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; padding: 1rem; z-index: 1000; margin: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);"
-                  @click=${(e: Event) => e.stopPropagation()}
-                >
-                  <div style="padding: 0.5rem; font-weight: 600; color: #d1d5db; border-bottom: 1px solid #374151; margin-bottom: 0.5rem;">List actions</div>
-                  <button
-                    class="btn btn-sm"
-                    style="width: 100%; justify-content: flex-start; background: transparent; color: #d1d5db; padding: 0.5rem; margin-bottom: 0.5rem;"
-                    @click=${() => {
-                      editingTask = { status: "todo" };
-                      showTaskModal = true;
-                      showListActionsMenu = null;
-                    }}
-                  >
-                    ➕ Add card
-                  </button>
-                  <div style="border-top: 1px solid #374151; margin: 0.5rem 0; padding-top: 0.5rem;">
-                    <div style="font-weight: 600; color: #d1d5db; margin-bottom: 0.5rem;">Change list color</div>
-                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-bottom: 0.5rem;">
-                      ${["#a855f7", "#f59e0b", "#3b82f6", "#10b981", "#ef4444", "#ec4899", "#8b5cf6", "#06b6d4", "#84cc16", "#f97316"].map(
-                        (color) => html`
-                          <button
-                            class="btn btn-sm"
-                            style="background: ${color}; border: ${listColors.todo === color ? "2px solid white" : "none"}; width: 100%; aspect-ratio: 1; padding: 0;"
-                            @click=${() => {
-                              listColors.todo = color;
-                              showListActionsMenu = null;
-                            }}
-                          ></button>
-                        `
-                      )}
-                    </div>
-                    <button
-                      class="btn btn-sm"
-                      style="width: 100%; justify-content: flex-start; background: transparent; color: #d1d5db; padding: 0.5rem;"
-                      @click=${() => {
-                        listColors.todo = "#a855f7";
-                        showListActionsMenu = null;
-                      }}
-                    >
-                      ✕ Remove color
-                    </button>
-                  </div>
-                </div>
-              `
-            : nothing}
+          
           <div
-            class="card-sub column-drop-zone"
+            class="column-drop-zone"
             @dragover=${handleDragOver}
             @drop=${(e: DragEvent) => handleDrop(e, "todo")}
+            style="min-height: 200px;"
           >
             ${tasksByStatus.todo.map((task) => renderTaskCard(task))}
             ${tasksByStatus.todo.length === 0
-              ? html`<div style="font-size: 0.875rem; color: #9ca3af; text-align: center; padding: 1rem;">No tasks</div>`
+              ? html`<div style="font-size: 0.8rem; color: var(--muted); text-align: center; padding: 2rem; border: 1px dashed var(--border); border-radius: var(--radius-md); opacity: 0.5;">Empty</div>`
               : nothing}
             <button
               class="btn btn-sm"
-              style="width: 100%; margin-top: 0.5rem;"
+              style="width: 100%; margin-top: 0.5rem; background: transparent; border-style: dashed;"
               @click=${() => {
                 editingTask = { status: "todo" };
                 showTaskModal = true;
               }}
             >
-              + Add Task
+              + Add New
             </button>
           </div>
         </div>
 
         <!-- In Progress Column -->
-        <div class="card" style="position: relative;">
-          <div class="card-title" style="color: ${listColors.in_progress}; display: flex; align-items: center; justify-content: space-between;">
-            <span>
-              <span>⚡</span> In Progress (${tasksByStatus.in_progress.length})
+        <div class="card" style="position: relative; background: var(--chrome);">
+          <div class="mc-column-header" style="border-top: 2px solid ${listColors.in_progress}; color: ${listColors.in_progress};">
+            <span>IN PROGRESS</span>
+            <span class="mc-agent-badge mc-agent-badge--working">
+               <span class="mc-status-indicator mc-status-indicator--working"></span>
+               ${tasksByStatus.in_progress.length}
             </span>
-            <button
-              class="btn btn-sm"
-              style="background: transparent; color: ${listColors.in_progress}; padding: 0.25rem;"
-              @click=${(e: Event) => {
-                e.stopPropagation();
-                showListActionsMenu = showListActionsMenu === "in_progress" ? null : "in_progress";
-              }}
-            >
-              ⋮
-            </button>
           </div>
           <div
-            class="card-sub column-drop-zone"
+            class="column-drop-zone"
             @dragover=${handleDragOver}
             @drop=${(e: DragEvent) => handleDrop(e, "in_progress")}
+            style="min-height: 200px;"
           >
             ${tasksByStatus.in_progress.map((task) => renderTaskCard(task))}
             ${tasksByStatus.in_progress.length === 0
-              ? html`<div style="font-size: 0.875rem; color: #9ca3af; text-align: center; padding: 1rem;">No tasks</div>`
+              ? html`<div style="font-size: 0.8rem; color: var(--muted); text-align: center; padding: 2rem; border: 1px dashed var(--border); border-radius: var(--radius-md); opacity: 0.5;">No active units</div>`
               : nothing}
           </div>
         </div>
 
         <!-- Testing Column -->
-        <div class="card" style="position: relative;">
-          <div class="card-title" style="color: ${listColors.testing}; display: flex; align-items: center; justify-content: space-between;">
-            <span>
-              <span>🧪</span> Testing (${tasksByStatus.testing.length})
-            </span>
-            <button
-              class="btn btn-sm"
-              style="background: transparent; color: ${listColors.testing}; padding: 0.25rem;"
-              @click=${(e: Event) => {
-                e.stopPropagation();
-                showListActionsMenu = showListActionsMenu === "testing" ? null : "testing";
-              }}
-            >
-              ⋮
-            </button>
+        <div class="card" style="position: relative; background: var(--chrome);">
+          <div class="mc-column-header" style="border-top: 2px solid ${listColors.testing}; color: ${listColors.testing};">
+            <span>TESTING</span>
+            <span class="mc-agent-badge">${tasksByStatus.testing.length}</span>
           </div>
           <div
-            class="card-sub column-drop-zone"
+            class="column-drop-zone"
             @dragover=${handleDragOver}
             @drop=${(e: DragEvent) => handleDrop(e, "testing")}
+            style="min-height: 200px;"
           >
             ${tasksByStatus.testing.map((task) => renderTaskCard(task))}
             ${tasksByStatus.testing.length === 0
-              ? html`<div style="font-size: 0.875rem; color: #9ca3af; text-align: center; padding: 1rem;">No tasks</div>`
+              ? html`<div style="font-size: 0.8rem; color: var(--muted); text-align: center; padding: 2rem; border: 1px dashed var(--border); border-radius: var(--radius-md); opacity: 0.5;">Stable</div>`
               : nothing}
           </div>
         </div>
 
         <!-- Done Column -->
-        <div class="card" style="position: relative;">
-          <div class="card-title" style="color: ${listColors.done}; display: flex; align-items: center; justify-content: space-between;">
-            <span>
-              <span>✅</span> Done (${tasksByStatus.done.length})
-            </span>
-            <button
-              class="btn btn-sm"
-              style="background: transparent; color: ${listColors.done}; padding: 0.25rem;"
-              @click=${(e: Event) => {
-                e.stopPropagation();
-                showListActionsMenu = showListActionsMenu === "done" ? null : "done";
-              }}
-            >
-              ⋮
-            </button>
+        <div class="card" style="position: relative; background: var(--chrome);">
+          <div class="mc-column-header" style="border-top: 2px solid ${listColors.done}; color: ${listColors.done};">
+            <span>COMPLETED</span>
+            <span class="mc-agent-badge">${tasksByStatus.done.length}</span>
           </div>
           <div
-            class="card-sub column-drop-zone"
+            class="column-drop-zone"
             @dragover=${handleDragOver}
             @drop=${(e: DragEvent) => handleDrop(e, "done")}
+            style="min-height: 200px;"
           >
             ${tasksByStatus.done.map((task) => renderTaskCard(task))}
             ${tasksByStatus.done.length === 0
-              ? html`<div style="font-size: 0.875rem; color: #9ca3af; text-align: center; padding: 1rem;">No tasks</div>`
+              ? html`<div style="font-size: 0.8rem; color: var(--muted); text-align: center; padding: 2rem; border: 1px dashed var(--border); border-radius: var(--radius-md); opacity: 0.5;">Archive pending</div>`
               : nothing}
           </div>
         </div>
 
         <!-- Archived Column -->
-        <div class="card" style="position: relative;">
-          <div class="card-title" style="color: ${listColors.archived}; display: flex; align-items: center; justify-content: space-between;">
-            <span>
-              <span>📦</span> Archived (${tasksByStatus.archived.length})
-            </span>
-            <button
-              class="btn btn-sm"
-              style="background: transparent; color: ${listColors.archived}; padding: 0.25rem;"
-              @click=${(e: Event) => {
-                e.stopPropagation();
-                showListActionsMenu = showListActionsMenu === "archived" ? null : "archived";
-              }}
-            >
-              ⋮
-            </button>
+        <div class="card" style="position: relative; background: var(--chrome);">
+          <div class="mc-column-header" style="border-top: 2px solid ${listColors.archived}; color: ${listColors.archived};">
+            <span>VAULT</span>
+            <span class="mc-agent-badge">${tasksByStatus.archived.length}</span>
           </div>
           <div
-            class="card-sub column-drop-zone"
+            class="column-drop-zone"
             @dragover=${handleDragOver}
             @drop=${(e: DragEvent) => handleDrop(e, "archived")}
+            style="min-height: 200px;"
           >
             ${tasksByStatus.archived.map((task) => renderTaskCard(task))}
             ${tasksByStatus.archived.length === 0
-              ? html`<div style="font-size: 0.875rem; color: #9ca3af; text-align: center; padding: 1rem;">No tasks</div>`
+              ? html`<div style="font-size: 0.8rem; color: var(--muted); text-align: center; padding: 2rem; border: 1px dashed var(--border); border-radius: var(--radius-md); opacity: 0.5;">Clean</div>`
               : nothing}
           </div>
         </div>
@@ -1162,7 +1355,7 @@ export function renderWizard(props: WizardProps) {
             ></textarea>
             <button
               class="btn btn-sm"
-              style="width: 100%; background: #a855f7;"
+              style="width: 100%; background: #a855f7; color: #f9fafb; font-weight: 600;"
               @click=${handleAddNote}
             >
               Add Note
@@ -1194,6 +1387,8 @@ export function renderWizard(props: WizardProps) {
 
       ${renderTaskEditorModal()}
       ${renderTaskDetailModal()}
+      ${renderProjectEditorModal(props.editingProjectId || null, props.projectEditTab || "details", props, () => { props.onSetEditingProject?.(null); }, (tab) => { props.onSetEditingProject?.(props.editingProjectId || null, tab); })}
+      ${renderAgentMonitoringWindows(props)}
       
       <!-- Footer Attribution -->
       <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #374151; text-align: center;">
@@ -1226,10 +1421,14 @@ export function renderWizard(props: WizardProps) {
   `;
 }
 
-function getLabelColor(label: string): string {
-  const colors = ["#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899"];
-  const hash = label.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return colors[hash % colors.length];
+function getLabelColor(labelId: string): string {
+  const label = getLabelById(labelId);
+  return label?.color || "#6b7280"; // Default gray if label not found
+}
+
+function getLabelName(labelId: string): string {
+  const label = getLabelById(labelId);
+  return label?.name || labelId; // Fallback to ID if label not found
 }
 
 function getPriorityColor(priority: string): string {
@@ -1244,3 +1443,4 @@ function getPriorityColor(priority: string): string {
       return "#6b7280";
   }
 }
+

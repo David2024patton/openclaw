@@ -6,8 +6,7 @@ export const TAB_GROUPS = [
     label: "Control",
     tabs: ["overview", "channels", "instances", "sessions", "cron"],
   },
-  { label: "Agent", tabs: ["skills", "nodes"] },
-  { label: "Project", tabs: ["wizard"] },
+  { label: "Project", tabs: ["wizard", "agents", "skills", "tools", "nodes"] },
   { label: "Settings", tabs: ["config", "debug", "logs"] },
 ] as const;
 
@@ -17,10 +16,13 @@ export type Tab =
   | "instances"
   | "sessions"
   | "cron"
+  | "agents"
   | "skills"
+  | "tools"
   | "nodes"
   | "chat"
   | "wizard"
+  | "prompts"
   | "config"
   | "debug"
   | "logs";
@@ -31,10 +33,13 @@ const TAB_PATHS: Record<Tab, string> = {
   instances: "/instances",
   sessions: "/sessions",
   cron: "/cron",
+  agents: "/agents",
   skills: "/skills",
+  tools: "/tools",
   nodes: "/nodes",
   chat: "/chat",
   wizard: "/wizard",
+  prompts: "/prompts",
   config: "/config",
   debug: "/debug",
   logs: "/logs",
@@ -115,12 +120,18 @@ export function iconForTab(tab: Tab): IconName {
       return "fileText";
     case "cron":
       return "loader";
+    case "agents":
+      return "brain";
     case "skills":
       return "zap";
+    case "tools":
+      return "wrench";
     case "nodes":
       return "monitor";
     case "wizard":
       return "folder";
+    case "prompts":
+      return "fileText";
     case "config":
       return "settings";
     case "debug":
@@ -144,14 +155,20 @@ export function titleForTab(tab: Tab) {
       return "Sessions";
     case "cron":
       return "Cron Jobs";
+    case "agents":
+      return "Agents";
     case "skills":
       return "Skills";
+    case "tools":
+      return "Tools";
     case "nodes":
       return "Nodes";
     case "chat":
       return "Chat";
     case "wizard":
-      return "Wizard";
+      return "Command Center";
+    case "prompts":
+      return "Prompts";
     case "config":
       return "Config";
     case "debug":
@@ -175,14 +192,20 @@ export function subtitleForTab(tab: Tab) {
       return "Inspect active sessions and adjust per-session defaults.";
     case "cron":
       return "Schedule wakeups and recurring agent runs.";
+    case "agents":
+      return "Agent management, roster, and personality settings.";
     case "skills":
       return "Manage skill availability and API key injection.";
+    case "tools":
+      return "Manage tools and integrations that extend OpenClaw's capabilities.";
     case "nodes":
       return "Paired devices, capabilities, and command exposure.";
     case "chat":
       return "Direct gateway chat session for quick interventions.";
     case "wizard":
-      return "Project management dashboard with tasks, notes, and deliverables.";
+      return "Command Center dashboard with tasks, notes, and deliverables.";
+    case "prompts":
+      return "Workspace Prompts - Edit prompt files (SOUL.md, IDENTITY.md, USER.md, etc.) to customize your agent's personality and behavior.";
     case "config":
       return "Edit ~/.openclaw/openclaw.json safely.";
     case "debug":

@@ -389,7 +389,7 @@ export async function finalizeOnboardingWizard(options: FinalizeOnboardingOption
   );
 
   await prompter.note(
-    "Running agents on your computer is risky — harden your setup: https://docs.openclaw.ai/security",
+    "Running agents on your computer is risky - harden your setup: https://docs.openclaw.ai/security",
     "Security",
   );
 

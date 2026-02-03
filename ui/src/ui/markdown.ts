@@ -5,7 +5,6 @@ import { truncateText } from "./format";
 marked.setOptions({
   gfm: true,
   breaks: true,
-  mangle: false,
 });
 
 const allowedTags = [
@@ -64,7 +63,7 @@ function installHooks() {
   if (hooksInstalled) return;
   hooksInstalled = true;
 
-  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+  DOMPurify.addHook("afterSanitizeAttributes", (node: Element) => {
     if (!(node instanceof HTMLAnchorElement)) return;
     const href = node.getAttribute("href");
     if (!href) return;

@@ -154,7 +154,7 @@ export function createProcessTool(
                     text:
                       (scopedFinished.tail ||
                         `(no output recorded${
-                          scopedFinished.truncated ? " — truncated to cap" : ""
+                          scopedFinished.truncated ? " - truncated to cap" : ""
                         })`) +
                       `\n\nProcess exited with ${
                         scopedFinished.exitSignal

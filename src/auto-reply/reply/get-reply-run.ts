@@ -179,7 +179,23 @@ export async function runPreparedReply(
       })
     : "";
   const groupSystemPrompt = sessionCtx.GroupSystemPrompt?.trim() ?? "";
-  const extraSystemPrompt = [groupIntro, groupSystemPrompt].filter(Boolean).join("\n\n");
+  
+  // Add wizard project context if active project is set
+  let wizardProjectContext = "";
+  if (sessionEntry?.wizardActiveProjectId) {
+    try {
+      const { getWizardProjectById } = await import("../../gateway/wizard-data-store.js");
+      const project = await getWizardProjectById(sessionEntry.wizardActiveProjectId);
+      if (project) {
+        wizardProjectContext = `## Active Wizard Project\nYou are currently working on project: **${project.name}**\n${project.description ? `Description: ${project.description}\n` : ""}${project.prompt ? `Original Prompt: ${project.prompt.substring(0, 500)}${project.prompt.length > 500 ? "..." : ""}\n` : ""}${project.githubRepo ? `GitHub Repo: ${project.githubRepo}\n` : ""}Use the \`wizard_projects\` and \`wizard_tasks\` tools to manage this project and its tasks. When creating or updating tasks, associate them with this project.\n`;
+      }
+    } catch (err) {
+      // Project might not exist, ignore
+      logVerbose(`Could not load wizard project context: ${err}`);
+    }
+  }
+  
+  const extraSystemPrompt = [groupIntro, groupSystemPrompt, wizardProjectContext].filter(Boolean).join("\n\n");
   const baseBody = sessionCtx.BodyStripped ?? sessionCtx.Body ?? "";
   // Use CommandBody/RawBody for bare reset detection (clean message without structural context).
   const rawBodyTrimmed = (ctx.CommandBody ?? ctx.RawBody ?? ctx.Body ?? "").trim();

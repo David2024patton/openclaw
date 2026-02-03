@@ -1,10 +1,13 @@
 services:
   openclaw-gateway:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
+    build: .
     environment:
       HOME: /home/node
       TERM: xterm-256color
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      OPENCLAW_PRIMARY_MODEL: ${OPENCLAW_PRIMARY_MODEL}
+      OPENCLAW_PRIMARY_MODEL_ID: ${OPENCLAW_PRIMARY_MODEL_ID}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
@@ -12,8 +15,9 @@ services:
     volumes:
       - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ./ui:/app/ui
     ports:
-      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+      - "49321:18789"
       - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
     init: true
     restart: unless-stopped
@@ -44,3 +48,21 @@ services:
     tty: true
     init: true
     entrypoint: ["node", "dist/index.js"]
+
+  openclaw-ui:
+    image: ${OPENCLAW_IMAGE:-openclaw:local}
+    build: .
+    environment:
+      HOME: /home/node
+    volumes:
+      - ./ui:/app/ui
+      - /app/ui/node_modules
+    working_dir: /app
+    user: root
+    command: sh -c "corepack enable && npm run ui:dev"
+    ports:
+      - "58765:5173"
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - openclaw-gateway

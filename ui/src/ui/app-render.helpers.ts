@@ -214,7 +214,7 @@ function resolveSessionOptions(
     seen.add(mainSessionKey);
     options.push({
       key: mainSessionKey,
-      displayName: resolveSessionDisplayName(mainSessionKey, resolvedMain),
+      displayName: resolveSessionDisplayName(mainSessionKey, resolvedMain || undefined),
     });
   }
 

@@ -15,6 +15,10 @@ import {
   validateSkillsStatusParams,
   validateSkillsUpdateParams,
 } from "../protocol/index.js";
+import { Type } from "@sinclair/typebox";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { CONFIG_DIR, resolveUserPath } from "../../utils.js";
 
 function listWorkspaceDirs(cfg: OpenClawConfig): string[] {
   const dirs = new Set<string>();
@@ -194,5 +198,221 @@ export const skillsHandlers: GatewayRequestHandlers = {
     };
     await writeConfigFile(nextConfig);
     respond(true, { ok: true, skillKey: p.skillKey, config: current }, undefined);
+  },
+  "skills.getContent": async ({ params, respond }) => {
+    const validated = Type.Object({
+      skillKey: Type.String(),
+    }).safeParse(params);
+    
+    if (!validated.success) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, `invalid params: ${formatValidationErrors(validated.error.errors)}`),
+      );
+      return;
+    }
+    
+    try {
+      const cfg = loadConfig();
+      const workspaceDir = resolveAgentWorkspaceDir(cfg, resolveDefaultAgentId(cfg));
+      const entries = loadWorkspaceSkillEntries(workspaceDir, { config: cfg });
+      const entry = entries.find((e) => {
+        const skillKey = e.metadata?.skillKey || e.skill.name;
+        return skillKey === validated.data.skillKey;
+      });
+      
+      if (!entry) {
+        respond(false, undefined, errorShape(ErrorCodes.NOT_FOUND, `Skill ${validated.data.skillKey} not found`));
+        return;
+      }
+      
+      const content = await fs.readFile(entry.skill.filePath, "utf-8");
+      respond(true, { skillKey: validated.data.skillKey, content, filePath: entry.skill.filePath }, undefined);
+    } catch (err) {
+      respond(false, undefined, errorShape(ErrorCodes.INTERNAL_ERROR, `Failed to get skill content: ${String(err)}`));
+    }
+  },
+  "skills.saveContent": async ({ params, respond }) => {
+    const validated = Type.Object({
+      skillKey: Type.String(),
+      content: Type.String(),
+    }).safeParse(params);
+    
+    if (!validated.success) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, `invalid params: ${formatValidationErrors(validated.error.errors)}`),
+      );
+      return;
+    }
+    
+    try {
+      const cfg = loadConfig();
+      const workspaceDir = resolveAgentWorkspaceDir(cfg, resolveDefaultAgentId(cfg));
+      const entries = loadWorkspaceSkillEntries(workspaceDir, { config: cfg });
+      const entry = entries.find((e) => {
+        const skillKey = e.metadata?.skillKey || e.skill.name;
+        return skillKey === validated.data.skillKey;
+      });
+      
+      if (!entry) {
+        respond(false, undefined, errorShape(ErrorCodes.NOT_FOUND, `Skill ${validated.data.skillKey} not found`));
+        return;
+      }
+      
+      // Only allow editing workspace and managed skills (not bundled)
+      if (entry.skill.source === "openclaw-bundled") {
+        respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "Cannot edit bundled skills"));
+        return;
+      }
+      
+      await fs.writeFile(entry.skill.filePath, validated.data.content, "utf-8");
+      respond(true, { ok: true, skillKey: validated.data.skillKey }, undefined);
+    } catch (err) {
+      respond(false, undefined, errorShape(ErrorCodes.INTERNAL_ERROR, `Failed to save skill content: ${String(err)}`));
+    }
+  },
+  "skills.create": async ({ params, respond }) => {
+    // Manual validation - Typebox doesn't have .safeParse()
+    const p = params as any;
+    
+    if (!p || typeof p !== "object") {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "Invalid params"));
+      return;
+    }
+    
+    if (!p.skillName || typeof p.skillName !== "string") {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "skillName is required"));
+      return;
+    }
+    
+    if (!p.content || typeof p.content !== "string") {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "content is required"));
+      return;
+    }
+    
+    try {
+      // Normalize skill name
+      const skillName = p.skillName.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+      if (!skillName) {
+        respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "Invalid skill name"));
+        return;
+      }
+      
+      // Use managed skills directory for new skills
+      const managedSkillsDir = path.join(CONFIG_DIR, "skills");
+      await fs.mkdir(managedSkillsDir, { recursive: true });
+      
+      const skillDir = path.join(managedSkillsDir, skillName);
+      if (await fs.access(skillDir).then(() => true).catch(() => false)) {
+        respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, `Skill ${skillName} already exists`));
+        return;
+      }
+      
+      await fs.mkdir(skillDir, { recursive: true });
+      const skillMdPath = path.join(skillDir, "SKILL.md");
+      await fs.writeFile(skillMdPath, p.content, "utf-8");
+      
+      respond(true, { ok: true, skillName, skillKey: skillName, filePath: skillMdPath }, undefined);
+    } catch (err) {
+      respond(false, undefined, errorShape(ErrorCodes.INTERNAL_ERROR, `Failed to create skill: ${String(err)}`));
+    }
+  },
+  "skills.delete": async ({ params, respond }) => {
+    const validated = Type.Object({
+      skillKey: Type.String(),
+    }).safeParse(params);
+    
+    if (!validated.success) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, `invalid params: ${formatValidationErrors(validated.error.errors)}`),
+      );
+      return;
+    }
+    
+    try {
+      const cfg = loadConfig();
+      const workspaceDir = resolveAgentWorkspaceDir(cfg, resolveDefaultAgentId(cfg));
+      const entries = loadWorkspaceSkillEntries(workspaceDir, { config: cfg });
+      const entry = entries.find((e) => {
+        const skillKey = e.metadata?.skillKey || e.skill.name;
+        return skillKey === validated.data.skillKey;
+      });
+      
+      if (!entry) {
+        respond(false, undefined, errorShape(ErrorCodes.NOT_FOUND, `Skill ${validated.data.skillKey} not found`));
+        return;
+      }
+      
+      // Only allow deleting workspace and managed skills (not bundled)
+      if (entry.skill.source === "openclaw-bundled") {
+        respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "Cannot delete bundled skills"));
+        return;
+      }
+      
+      // Delete the skill directory
+      const skillDir = path.dirname(entry.skill.filePath);
+      await fs.rm(skillDir, { recursive: true, force: true });
+      
+      respond(true, { ok: true, skillKey: validated.data.skillKey }, undefined);
+    } catch (err) {
+      respond(false, undefined, errorShape(ErrorCodes.INTERNAL_ERROR, `Failed to delete skill: ${String(err)}`));
+    }
+  },
+  "skills.test": async ({ params, respond }) => {
+    // Test skill by validating its structure
+    const validated = Type.Object({
+      skillKey: Type.String(),
+    }).safeParse(params);
+    
+    if (!validated.success) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, `invalid params: ${formatValidationErrors(validated.error.errors)}`),
+      );
+      return;
+    }
+    
+    try {
+      const cfg = loadConfig();
+      const workspaceDir = resolveAgentWorkspaceDir(cfg, resolveDefaultAgentId(cfg));
+      const entries = loadWorkspaceSkillEntries(workspaceDir, { config: cfg });
+      const entry = entries.find((e) => {
+        const skillKey = e.metadata?.skillKey || e.skill.name;
+        return skillKey === validated.data.skillKey;
+      });
+      
+      if (!entry) {
+        respond(false, undefined, errorShape(ErrorCodes.NOT_FOUND, `Skill ${validated.data.skillKey} not found`));
+        return;
+      }
+      
+      // Basic validation: check if SKILL.md exists and has valid frontmatter
+      const content = await fs.readFile(entry.skill.filePath, "utf-8");
+      const hasFrontmatter = content.startsWith("---");
+      const hasName = content.includes("name:");
+      const hasDescription = content.includes("description:");
+      
+      const isValid = hasFrontmatter && hasName && hasDescription;
+      const issues: string[] = [];
+      if (!hasFrontmatter) issues.push("Missing YAML frontmatter");
+      if (!hasName) issues.push("Missing 'name' field in frontmatter");
+      if (!hasDescription) issues.push("Missing 'description' field in frontmatter");
+      
+      respond(true, {
+        ok: isValid,
+        skillKey: validated.data.skillKey,
+        isValid,
+        issues: issues.length > 0 ? issues : undefined,
+        message: isValid ? "Skill structure is valid" : `Validation failed: ${issues.join(", ")}`,
+      }, undefined);
+    } catch (err) {
+      respond(false, undefined, errorShape(ErrorCodes.INTERNAL_ERROR, `Failed to test skill: ${String(err)}`));
+    }
   },
 };

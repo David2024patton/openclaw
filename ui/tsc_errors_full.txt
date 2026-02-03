@@ -1,0 +1,175 @@
+﻿src/ui/app-render.helpers.ts(97,19): error TS2339: Property 'chatStreamStartedAt' does not exist on type 'AppViewState'.
+src/ui/app-render.helpers.ts(99,19): error TS2339: Property 'resetToolStream' does not exist on type 'AppViewState'.
+src/ui/app-render.helpers.ts(100,19): error TS2339: Property 'resetChatScroll' does not exist on type 'AppViewState'.
+src/ui/app-render.helpers.ts(107,35): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'SettingsHost'.
+  Type 'AppViewState' is missing the following properties from type 'SettingsHost': applySessionKey, chatHasAutoScrolled, logsAtBottom, eventLogBuffer, and 2 more.
+src/ui/app-render.helpers.ts(108,34): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ChatState'.
+  Property 'chatStreamStartedAt' is missing in type 'AppViewState' but required in type 'ChatState'.
+src/ui/app-render.helpers.ts(125,17): error TS2339: Property 'resetToolStream' does not exist on type 'AppViewState'.
+src/ui/app-render.helpers.ts(217,62): error TS2345: Argument of type '"" | GatewaySessionRow | null | undefined' is not assignable to parameter of type 'GatewaySessionRow | undefined'.
+  Type 'null' is not assignable to type 'GatewaySessionRow | undefined'.
+src/ui/app-render.ts(264,25): error TS2339: Property 'resetToolStream' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(293,17): error TS2322: Type 'Record<string, unknown>' is not assignable to type 'ConfigUiHints'.
+  'string' index signatures are incompatible.
+    Type 'unknown' is not assignable to type 'ConfigUiHint'.
+src/ui/app-render.ts(302,71): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ConfigState'.
+  Type 'AppViewState' is missing the following properties from type 'ConfigState': applySessionKey, configSchemaVersion, configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/app-render.ts(488,48): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ConfigState'.
+  Type 'AppViewState' is missing the following properties from type 'ConfigState': applySessionKey, configSchemaVersion, configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/app-render.ts(498,43): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ConfigState'.
+  Type 'AppViewState' is missing the following properties from type 'ConfigState': applySessionKey, configSchemaVersion, configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/app-render.ts(500,43): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ConfigState'.
+  Type 'AppViewState' is missing the following properties from type 'ConfigState': applySessionKey, configSchemaVersion, configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/app-render.ts(506,43): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ConfigState'.
+  Type 'AppViewState' is missing the following properties from type 'ConfigState': applySessionKey, configSchemaVersion, configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/app-render.ts(508,43): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ConfigState'.
+  Type 'AppViewState' is missing the following properties from type 'ConfigState': applySessionKey, configSchemaVersion, configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/app-render.ts(511,50): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ConfigState'.
+  Type 'AppViewState' is missing the following properties from type 'ConfigState': applySessionKey, configSchemaVersion, configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/app-render.ts(546,25): error TS2339: Property 'chatStreamStartedAt' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(549,25): error TS2339: Property 'resetToolStream' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(550,25): error TS2339: Property 'resetChatScroll' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(557,40): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ChatState'.
+  Property 'chatStreamStartedAt' is missing in type 'AppViewState' but required in type 'ChatState'.
+src/ui/app-render.ts(558,42): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ChatHost'.
+  Property 'refreshSessionsAfterChat' is missing in type 'AppViewState' but required in type 'ChatHost'.
+src/ui/app-render.ts(564,41): error TS2339: Property 'compactionStatus' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(569,40): error TS2339: Property 'chatStreamStartedAt' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(579,25): error TS2339: Property 'resetToolStream' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(580,55): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ChatState'.
+  Property 'chatStreamStartedAt' is missing in type 'AppViewState' but required in type 'ChatState'.
+src/ui/app-render.ts(580,81): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ChatHost'.
+  Property 'refreshSessionsAfterChat' is missing in type 'AppViewState' but required in type 'ChatHost'.
+src/ui/app-render.ts(589,48): error TS2339: Property 'handleChatScroll' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(593,37): error TS2339: Property 'handleSendChat' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(595,43): error TS2339: Property 'handleAbortChat' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(596,46): error TS2339: Property 'removeQueuedMessage' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(597,43): error TS2339: Property 'handleSendChat' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(599,36): error TS2339: Property 'sidebarOpen' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(600,39): error TS2339: Property 'sidebarContent' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(601,37): error TS2339: Property 'sidebarError' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(602,35): error TS2339: Property 'splitRatio' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(603,59): error TS2339: Property 'handleOpenSidebar' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(604,45): error TS2339: Property 'handleCloseSidebar' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(605,62): error TS2339: Property 'handleSplitRatioChange' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(626,17): error TS2322: Type 'Record<string, unknown>' is not assignable to type 'ConfigUiHints'.
+  'string' index signatures are incompatible.
+    Type 'unknown' is not assignable to type 'ConfigUiHint'.
+src/ui/app-render.ts(630,36): error TS2339: Property 'configSearchQuery' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(631,38): error TS2339: Property 'configActiveSection' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(632,41): error TS2339: Property 'configActiveSubsection' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(637,69): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ConfigState'.
+  Type 'AppViewState' is missing the following properties from type 'ConfigState': applySessionKey, configSchemaVersion, configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/app-render.ts(638,51): error TS2339: Property 'configSearchQuery' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(640,25): error TS2339: Property 'configActiveSection' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(641,25): error TS2339: Property 'configActiveSubsection' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(643,57): error TS2339: Property 'configActiveSubsection' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(644,44): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ConfigState'.
+  Type 'AppViewState' is missing the following properties from type 'ConfigState': applySessionKey, configSchemaVersion, configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/app-render.ts(645,42): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ConfigState'.
+  Type 'AppViewState' is missing the following properties from type 'ConfigState': applySessionKey, configSchemaVersion, configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/app-render.ts(646,44): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ConfigState'.
+  Type 'AppViewState' is missing the following properties from type 'ConfigState': applySessionKey, configSchemaVersion, configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/app-render.ts(647,43): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'ConfigState'.
+  Type 'AppViewState' is missing the following properties from type 'ConfigState': applySessionKey, configSchemaVersion, configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/app-render.ts(701,83): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/ui/app-render.ts(702,87): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/ui/app-render.ts(707,39): error TS2551: Property 'wizardProjectEditTab' does not exist on type 'AppViewState'. Did you mean 'wizardProjects'?
+src/ui/app-render.ts(710,34): error TS2551: Property 'wizardProjectEditTab' does not exist on type 'AppViewState'. Did you mean 'wizardProjects'?
+src/ui/app-render.ts(721,32): error TS2339: Property 'workspacePrompts' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(722,44): error TS2339: Property 'handleWorkspacePromptsLoad' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(724,25): error TS2339: Property 'handleWorkspacePromptsSave' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(745,43): error TS2345: Argument of type 'AppViewState' is not assignable to parameter of type 'LogsState'.
+  Type 'AppViewState' is missing the following properties from type 'LogsState': logsCursor, logsLastFetchAt, logsLimit, logsMaxBytes
+src/ui/app-render.ts(746,51): error TS2339: Property 'exportLogs' does not exist on type 'AppViewState'.
+src/ui/app-render.ts(747,44): error TS2339: Property 'handleLogsScroll' does not exist on type 'AppViewState'.
+src/ui/app-settings.ts(94,8): error TS2352: Conversion of type 'SettingsHost' to type '{ password: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'password' is missing in type 'SettingsHost' but required in type '{ password: string; }'.
+src/ui/app-tool-stream.ts(223,7): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/ui/app-tool-stream.ts(228,41): error TS2345: Argument of type 'ToolStreamEntry | undefined' is not assignable to parameter of type 'ToolStreamEntry'.
+  Type 'undefined' is not assignable to type 'ToolStreamEntry'.
+src/ui/app-tool-stream.ts(233,31): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/ui/app-tool-stream.ts(237,3): error TS18048: 'entry' is possibly 'undefined'.
+src/ui/app-tool-stream.ts(237,42): error TS2345: Argument of type 'ToolStreamEntry | undefined' is not assignable to parameter of type 'ToolStreamEntry'.
+  Type 'undefined' is not assignable to type 'ToolStreamEntry'.
+src/ui/app.ts(221,42): error TS2304: Cannot find name 'SkillMessage'.
+src/ui/app.ts(587,20): error TS2339: Property 'manualApprovalRequired' does not exist on type '{ id: string; name: string; description?: string | undefined; githubRepo?: string | undefined; devServerUrl?: string | undefined; status: "active" | "completed" | "archived"; createdAt: string; updatedAt: string; tags?: string[] | undefined; }'.
+src/ui/app.ts(656,11): error TS2353: Object literal may only specify known properties, and 'attachments' does not exist in type 'Partial<{ title: string; description: string; status: "archived" | "todo" | "in_progress" | "testing" | "done"; priority: "low" | "medium" | "high"; dueDate: string; labels: string[]; projectId: string; }>'.
+src/ui/app.ts(656,29): error TS18048: 'task' is possibly 'undefined'.
+src/ui/app.ts(697,17): error TS2353: Object literal may only specify known properties, and 'attachments' does not exist in type 'Partial<{ title: string; description: string; status: "archived" | "todo" | "in_progress" | "testing" | "done"; priority: "low" | "medium" | "high"; dueDate: string; labels: string[]; projectId: string; }>'.
+src/ui/app.ts(717,17): error TS2353: Object literal may only specify known properties, and 'attachments' does not exist in type 'Partial<{ title: string; description: string; status: "archived" | "todo" | "in_progress" | "testing" | "done"; priority: "low" | "medium" | "high"; dueDate: string; labels: string[]; projectId: string; }>'.
+src/ui/app.ts(736,11): error TS2353: Object literal may only specify known properties, and 'attachments' does not exist in type 'Partial<{ title: string; description: string; status: "archived" | "todo" | "in_progress" | "testing" | "done"; priority: "low" | "medium" | "high"; dueDate: string; labels: string[]; projectId: string; }>'.
+src/ui/app.ts(752,9): error TS2353: Object literal may only specify known properties, and 'checklist' does not exist in type 'Partial<{ title: string; description: string; status: "archived" | "todo" | "in_progress" | "testing" | "done"; priority: "low" | "medium" | "high"; dueDate: string; labels: string[]; projectId: string; }>'.
+src/ui/app.ts(761,9): error TS2353: Object literal may only specify known properties, and 'checklist' does not exist in type 'Partial<{ title: string; description: string; status: "archived" | "todo" | "in_progress" | "testing" | "done"; priority: "low" | "medium" | "high"; dueDate: string; labels: string[]; projectId: string; }>'.
+src/ui/app.ts(770,9): error TS2353: Object literal may only specify known properties, and 'checklist' does not exist in type 'Partial<{ title: string; description: string; status: "archived" | "todo" | "in_progress" | "testing" | "done"; priority: "low" | "medium" | "high"; dueDate: string; labels: string[]; projectId: string; }>'.
+src/ui/app.ts(844,30): error TS2339: Property 'prompt' does not exist on type '{ id: string; name: string; description?: string | undefined; githubRepo?: string | undefined; devServerUrl?: string | undefined; status: "active" | "completed" | "archived"; createdAt: string; updatedAt: string; tags?: string[] | undefined; }'.
+src/ui/app.ts(847,180): error TS2339: Property 'prompt' does not exist on type '{ id: string; name: string; description?: string | undefined; githubRepo?: string | undefined; devServerUrl?: string | undefined; status: "active" | "completed" | "archived"; createdAt: string; updatedAt: string; tags?: string[] | undefined; }'.
+src/ui/app.ts(863,203): error TS2339: Property 'research' does not exist on type '{ id: string; name: string; description?: string | undefined; githubRepo?: string | undefined; devServerUrl?: string | undefined; status: "active" | "completed" | "archived"; createdAt: string; updatedAt: string; tags?: string[] | undefined; }'.
+src/ui/app.ts(876,30): error TS2339: Property 'features' does not exist on type '{ id: string; name: string; description?: string | undefined; githubRepo?: string | undefined; devServerUrl?: string | undefined; status: "active" | "completed" | "archived"; createdAt: string; updatedAt: string; tags?: string[] | undefined; }'.
+src/ui/app.ts(878,27): error TS2339: Property 'features' does not exist on type '{ id: string; name: string; description?: string | undefined; githubRepo?: string | undefined; devServerUrl?: string | undefined; status: "active" | "completed" | "archived"; createdAt: string; updatedAt: string; tags?: string[] | undefined; }'.
+src/ui/app.ts(880,13): error TS7006: Parameter 'line' implicitly has an 'any' type.
+src/ui/app.ts(881,16): error TS7006: Parameter 'line' implicitly has an 'any' type.
+src/ui/app.ts(898,21): error TS2339: Property 'success' does not exist on type '{}'.
+src/ui/app.ts(898,41): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/app.ts(899,42): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/app.ts(917,21): error TS2339: Property 'success' does not exist on type '{}'.
+src/ui/app.ts(921,69): error TS2339: Property 'error' does not exist on type '{}'.
+src/ui/app.ts(932,21): error TS2339: Property 'success' does not exist on type '{}'.
+src/ui/app.ts(932,41): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/app.ts(933,45): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/app.ts(934,9): error TS2304: Cannot find name 'updateSkillEdit'.
+src/ui/app.ts(934,62): error TS2304: Cannot find name 'updateSkillEdit'.
+src/ui/app.ts(945,21): error TS2339: Property 'success' does not exist on type '{}'.
+src/ui/app.ts(951,15): error TS2304: Cannot find name 'loadSkills'.
+src/ui/app.ts(951,63): error TS2304: Cannot find name 'loadSkills'.
+src/ui/app.ts(952,9): error TS2304: Cannot find name 'setSkillMessage'.
+src/ui/app.ts(952,62): error TS2304: Cannot find name 'setSkillMessage'.
+src/ui/app.ts(957,66): error TS2339: Property 'error' does not exist on type '{}'.
+src/ui/app.ts(969,23): error TS2339: Property 'success' does not exist on type '{}'.
+src/ui/app.ts(972,17): error TS2304: Cannot find name 'loadSkills'.
+src/ui/app.ts(972,65): error TS2304: Cannot find name 'loadSkills'.
+src/ui/app.ts(974,62): error TS2339: Property 'error' does not exist on type '{}'.
+src/ui/app.ts(987,21): error TS2339: Property 'success' does not exist on type '{}'.
+src/ui/app.ts(987,41): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/app.ts(988,55): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/app.ts(989,9): error TS2304: Cannot find name 'setSkillMessage'.
+src/ui/app.ts(989,62): error TS2304: Cannot find name 'setSkillMessage'.
+src/ui/app.ts(995,7): error TS2304: Cannot find name 'setSkillMessage'.
+src/ui/app.ts(995,60): error TS2304: Cannot find name 'setSkillMessage'.
+src/ui/app.ts(1064,21): error TS2339: Property 'success' does not exist on type '{}'.
+src/ui/app.ts(1064,41): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/app.ts(1065,15): error TS2304: Cannot find name 'loadSkills'.
+src/ui/app.ts(1065,63): error TS2304: Cannot find name 'loadSkills'.
+src/ui/app.ts(1066,42): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/app.ts(1072,52): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/app.ts(1081,22): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppViewState'.
+  Type 'OpenClawApp' is missing the following properties from type 'AppViewState': handleConfigLoad, handleConfigSave, handleConfigApply, handleConfigFormUpdate, and 36 more.
+src/ui/controllers/chat.test.ts(5,3): error TS2322: Type '{ client: GatewayBrowserClient | null; connected: boolean; sessionKey: string; chatLoading: boolean; chatMessages: unknown[]; chatThinkingLevel: string | null; ... 6 more ...; lastError: string | null; }' is not assignable to type 'ChatState'.
+  Types of property 'chatAttachments' are incompatible.
+    Type 'ChatAttachment[] | undefined' is not assignable to type 'ChatAttachment[]'.
+      Type 'undefined' is not assignable to type 'ChatAttachment[]'.
+src/ui/controllers/config.test.ts(11,3): error TS2739: Type '{ client: null; connected: false; applySessionKey: string; configLoading: false; configRaw: string; configRawOriginal: string; configValid: null; configIssues: never[]; configSaving: false; configApplying: false; ... 10 more ...; lastError: null; }' is missing the following properties from type 'ConfigState': configSearchQuery, configActiveSection, configActiveSubsection
+src/ui/device-identity.ts(41,54): error TS2345: Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to parameter of type 'BufferSource'.
+  Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'ArrayBufferView<ArrayBuffer>'.
+    Types of property 'buffer' are incompatible.
+      Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+        Type 'SharedArrayBuffer' is not assignable to type 'ArrayBuffer'.
+          Types of property '[Symbol.toStringTag]' are incompatible.
+            Type '"SharedArrayBuffer"' is not assignable to type '"ArrayBuffer"'.
+src/ui/markdown.ts(8,3): error TS2353: Object literal may only specify known properties, and 'mangle' does not exist in type 'MarkedOptions<string, string>'.
+src/ui/navigation.ts(125,7): error TS2322: Type '"tool"' is not assignable to type '"messageSquare" | "barChart" | "link" | "radio" | "fileText" | "zap" | "monitor" | "settings" | "bug" | "scrollText" | "folder" | "menu" | "x" | "check" | "copy" | "search" | "brain" | ... 12 more ... | "puzzle"'.
+src/ui/views/channels.ts(125,9): error TS2561: Object literal may only specify known properties, but 'googlechat' does not exist in type '{ props: ChannelsProps; googleChat?: GoogleChatStatus | null | undefined; accountCountLabel: unknown; }'. Did you mean to write 'googleChat'?
+src/ui/views/instances.ts(55,37): error TS2339: Property 'roles' does not exist on type 'PresenceEntry'.
+src/ui/views/instances.ts(55,52): error TS2339: Property 'roles' does not exist on type 'PresenceEntry'.
+src/ui/views/instances.ts(56,38): error TS2339: Property 'scopes' does not exist on type 'PresenceEntry'.
+src/ui/views/instances.ts(56,54): error TS2339: Property 'scopes' does not exist on type 'PresenceEntry'.
+src/ui/views/instances.ts(70,24): error TS7006: Parameter 'role' implicitly has an 'any' type.
+src/ui/views/workspace-prompts.ts(57,23): error TS2339: Property 'success' does not exist on type '{}'.
+src/ui/views/workspace-prompts.ts(57,43): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/views/workspace-prompts.ts(58,37): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/views/workspace-prompts.ts(59,37): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/views/workspace-prompts.ts(258,41): error TS2339: Property 'success' does not exist on type '{}'.
+src/ui/views/workspace-prompts.ts(258,61): error TS2339: Property 'result' does not exist on type '{}'.
+src/ui/views/workspace-prompts.ts(259,55): error TS2339: Property 'result' does not exist on type '{}'.

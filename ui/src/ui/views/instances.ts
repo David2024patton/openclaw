@@ -52,8 +52,8 @@ export function renderInstances(props: InstancesProps) {
 function renderEntry(entry: PresenceEntry) {
   const lastInput = entry.lastInputSeconds != null ? `${entry.lastInputSeconds}s ago` : "n/a";
   const mode = entry.mode ?? "unknown";
-  const roles = Array.isArray(entry.roles) ? entry.roles.filter(Boolean) : [];
-  const scopes = Array.isArray(entry.scopes) ? entry.scopes.filter(Boolean) : [];
+  const roles: string[] = Array.isArray(entry.roles) ? entry.roles.filter(Boolean) : [];
+  const scopes: string[] = Array.isArray(entry.scopes) ? entry.scopes.filter(Boolean) : [];
   const scopesLabel =
     scopes.length > 0
       ? scopes.length > 3
@@ -67,7 +67,7 @@ function renderEntry(entry: PresenceEntry) {
         <div class="list-sub">${formatPresenceSummary(entry)}</div>
         <div class="chip-row">
           <span class="chip">${mode}</span>
-          ${roles.map((role) => html`<span class="chip">${role}</span>`)}
+          ${roles.map((role: string) => html`<span class="chip">${role}</span>`)}
           ${scopesLabel ? html`<span class="chip">${scopesLabel}</span>` : nothing}
           ${entry.platform ? html`<span class="chip">${entry.platform}</span>` : nothing}
           ${entry.deviceFamily ? html`<span class="chip">${entry.deviceFamily}</span>` : nothing}

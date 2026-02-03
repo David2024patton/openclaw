@@ -22,6 +22,7 @@ import type { ChatQueueItem, CronFormState } from "./ui-types";
 import { parseAgentSessionKey } from "../../../src/routing/session-key.js";
 import { refreshChatAvatar } from "./app-chat";
 import { renderChatControls, renderTab, renderThemeToggle } from "./app-render.helpers";
+import { loadAgents } from "./controllers/agents";
 import { loadChannels } from "./controllers/channels";
 import { loadChatHistory } from "./controllers/chat";
 import {
@@ -65,6 +66,14 @@ import {
   updateSkillEnabled,
   type SkillMessage,
 } from "./controllers/skills";
+import {
+  installTool,
+  loadTools,
+  saveToolApiKey,
+  updateToolEdit,
+  updateToolEnabled,
+  type ToolMessage,
+} from "./controllers/tools";
 import { icons } from "./icons";
 import {
   TAB_GROUPS,
@@ -74,6 +83,8 @@ import {
   titleForTab,
   type Tab,
 } from "./navigation";
+import { renderAgents } from "./views/agents";
+import { renderAgentModal, agentToFormData, createEmptyAgentForm } from "./views/agent-modal";
 import { renderChannels } from "./views/channels";
 import { renderChat } from "./views/chat";
 import { renderConfig } from "./views/config";
@@ -87,7 +98,10 @@ import { renderNodes } from "./views/nodes";
 import { renderOverview } from "./views/overview";
 import { renderSessions } from "./views/sessions";
 import { renderSkills } from "./views/skills";
+import { renderSkillsMarketplace, renderSkillsModals } from "./views/skills-marketplace";
+import { renderToolsMarketplace, renderToolsModals } from "./views/tools-marketplace";
 import { renderWizard } from "./views/wizard";
+import { renderWorkspacePrompts } from "./views/workspace-prompts";
 
 const AVATAR_DATA_RE = /^data:/i;
 const AVATAR_HTTP_RE = /^https?:\/\//i;
@@ -117,6 +131,9 @@ export function renderApp(state: AppViewState) {
 
   return html`
     <div class="shell ${isChat ? "shell--chat" : ""} ${chatFocus ? "shell--chat-focus" : ""} ${state.settings.navCollapsed ? "shell--nav-collapsed" : ""} ${state.onboarding ? "shell--onboarding" : ""}">
+      <div style="background: #ef4444; color: white; text-align: center; padding: 4px; font-weight: bold; font-size: 12px; z-index: 9999;">
+        UI VERSION v.002.1
+      </div>
       <header class="topbar">
         <div class="topbar-left">
           <button
@@ -140,6 +157,18 @@ export function renderApp(state: AppViewState) {
               <div class="brand-sub">Gateway Dashboard</div>
             </div>
           </div>
+          ${(() => {
+            const info = (window as any).__BUILD_INFO__;
+            if (!info) return nothing;
+            const builtAt = new Date(info.builtAt);
+            const isStale = Date.now() - builtAt.getTime() > 24 * 60 * 60 * 1000;
+            return html`
+              <div class="brand-build-info" style="font-size: 10px; opacity: 0.4; margin-top: 4px; ${isStale ? "color: #eab308; opacity: 1;" : ""}">
+                Built: ${builtAt.toLocaleString()}
+                ${isStale ? html` <span title="More than 24h old">(Stale)</span>` : ""}
+              </div>
+            `;
+          })()}
         </div>
         <div class="topbar-status">
           <div class="pill">
@@ -147,6 +176,41 @@ export function renderApp(state: AppViewState) {
             <span>Health</span>
             <span class="mono">${state.connected ? "OK" : "Offline"}</span>
           </div>
+          <button
+            class="btn btn-sm"
+            @click=${async () => {
+              // Clear all caches via Cache API
+              if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+              }
+              // Unregister service workers
+              if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map(r => r.unregister()));
+              }
+              // Force hard reload bypassing cache
+              window.location.href = window.location.href.split('?')[0] + '?cache_bust=' + Date.now();
+            }}
+            title="Clear cache and reload"
+            style="
+              padding: 0.375rem 0.75rem;
+              font-size: 0.875rem;
+              background: rgba(59, 130, 246, 0.1);
+              border: 1px solid rgba(59, 130, 246, 0.3);
+              color: var(--text);
+              border-radius: var(--radius-sm);
+              cursor: pointer;
+              transition: all 0.2s ease;
+              display: flex;
+              align-items: center;
+              gap: 0.25rem;
+            "
+            onmouseover="this.style.background='rgba(59, 130, 246, 0.2)'; this.style.borderColor='rgba(59, 130, 246, 0.5)';"
+            onmouseout="this.style.background='rgba(59, 130, 246, 0.1)'; this.style.borderColor='rgba(59, 130, 246, 0.3)';"
+          >
+            🔄 Clear Cache
+          </button>
           ${renderThemeToggle(state)}
         </div>
       </header>
@@ -291,6 +355,29 @@ export function renderApp(state: AppViewState) {
         }
 
         ${
+          state.tab === "agents"
+            ? renderAgents({
+                loading: state.agentsLoading,
+                agentsList: state.agentsList,
+                error: state.agentsError,
+                onRefresh: () => loadAgents(state),
+                onEditAgent: (agent) => {
+                  state.agentModalAgent = agent;
+                  state.agentModalForm = agentToFormData(agent);
+                  state.agentModalTab = "info";
+                  state.agentModalVisible = true;
+                },
+                onCreateAgent: () => {
+                  state.agentModalAgent = null;
+                  state.agentModalForm = createEmptyAgentForm();
+                  state.agentModalTab = "info";
+                  state.agentModalVisible = true;
+                },
+              })
+            : nothing
+        }
+
+        ${
           state.tab === "sessions"
             ? renderSessions({
                 loading: state.sessionsLoading,
@@ -343,21 +430,78 @@ export function renderApp(state: AppViewState) {
 
         ${
           state.tab === "skills"
-            ? renderSkills({
+            ? renderSkillsMarketplace({
                 loading: state.skillsLoading,
                 report: state.skillsReport,
                 error: state.skillsError,
                 filter: state.skillsFilter,
+                categoryFilter: state.skillsCategoryFilter || "all",
                 edits: state.skillEdits,
                 messages: state.skillMessages,
                 busyKey: state.skillsBusyKey,
+                client: state.client,
+                selectedSkillKey: state.selectedSkillKey,
+                editingContent: state.editingSkillContent,
                 onFilterChange: (next) => (state.skillsFilter = next),
+                onCategoryFilterChange: (next) => (state.skillsCategoryFilter = next),
                 onRefresh: () => loadSkills(state, { clearMessages: true }),
                 onToggle: (key, enabled) => updateSkillEnabled(state, key, enabled),
                 onEdit: (key, value) => updateSkillEdit(state, key, value),
                 onSaveKey: (key) => saveSkillApiKey(state, key),
                 onInstall: (skillKey, name, installId) =>
                   installSkill(state, skillKey, name, installId),
+                onSelectSkill: (skillKey) => (state.selectedSkillKey = skillKey),
+                onLoadSkillContent: () => Promise.resolve(),
+                onSaveSkillContent: () => Promise.resolve(),
+                onDeleteSkill: () => Promise.resolve(),
+                onTestSkill: () => Promise.resolve(),
+                onCreateSkill: () => {},
+                showCreateSkillModal: state.showCreateSkillModal,
+                newSkillName: state.newSkillName,
+                newSkillCategory: state.newSkillCategory,
+                newSkillContent: state.newSkillContent,
+                onNewSkillNameChange: (name) => (state.newSkillName = name),
+                onNewSkillCategoryChange: (category) => (state.newSkillCategory = category),
+                onNewSkillContentChange: (content) => (state.newSkillContent = content),
+                onSaveNewSkill: () => {},
+                onCloseCreateSkillModal: () => {
+                  state.showCreateSkillModal = false;
+                  state.newSkillName = "";
+                  state.newSkillCategory = "";
+                  state.newSkillContent = "";
+                },
+              })
+            : nothing
+        }
+
+        ${
+          state.tab === "tools"
+            ? renderToolsMarketplace({
+                loading: state.toolsLoading ?? false,
+                report: state.toolsReport ?? null,
+                error: state.toolsError ?? null,
+                filter: state.toolsFilter ?? "",
+                categoryFilter: state.toolsCategoryFilter ?? "all",
+                edits: state.toolEdits ?? {},
+                messages: state.toolMessages ?? {},
+                busyKey: state.toolsBusyKey ?? null,
+                client: state.client,
+                selectedToolKey: state.selectedToolKey ?? null,
+                editingContent: state.editingToolContent ?? "",
+                onFilterChange: (next: string) => (state.toolsFilter = next),
+                onCategoryFilterChange: (next: string) => (state.toolsCategoryFilter = next),
+                onRefresh: () => loadTools(state as any, { clearMessages: true }),
+                onToggle: (key: string, enabled: boolean) => updateToolEnabled(state as any, key, enabled),
+                onEdit: (key: string, value: string) => updateToolEdit(state as any, key, value),
+                onSaveKey: (key: string) => saveToolApiKey(state as any, key),
+                onInstall: (toolKey: string, name: string, installId: string) =>
+                  installTool(state as any, toolKey, name, installId),
+                onSelectTool: (toolKey: string | null) => (state.selectedToolKey = toolKey),
+                onLoadToolContent: () => Promise.resolve(),
+                onSaveToolContent: () => Promise.resolve(),
+                onDeleteTool: () => Promise.resolve(),
+                onTestTool: () => Promise.resolve(),
+                onCreateTool: () => {},
               })
             : nothing
         }
@@ -601,8 +745,34 @@ export function renderApp(state: AppViewState) {
                   state.handleWizardUpdateChecklistItem(taskId, itemId, updates),
                 onDeleteChecklistItem: (taskId, itemId) => state.handleWizardDeleteChecklistItem(taskId, itemId),
                 onRefresh: () => state.handleWizardRefresh(),
+                onClearCache: () => state.handleWizardClearCache(),
                 onAddProject: (name, description) => state.handleWizardAddProject(name, description),
+                onUpdateProject: (projectId, updates) => state.handleWizardUpdateProject(projectId, updates),
                 onDeleteProject: (projectId) => state.handleWizardDeleteProject(projectId),
+                onEnhancePrompt: state.handleWizardEnhancePrompt ? (projectId) => state.handleWizardEnhancePrompt!(projectId) : undefined,
+                onEnhanceResearch: state.handleWizardEnhanceResearch ? (projectId) => state.handleWizardEnhanceResearch!(projectId) : undefined,
+                onGenerateTasksFromFeatures: state.handleWizardGenerateTasksFromFeatures
+                  ? (projectId) => state.handleWizardGenerateTasksFromFeatures!(projectId)
+                  : undefined,
+                editingProjectId: state.wizardEditingProjectId,
+                projectEditTab: state.wizardProjectEditTab,
+                onSetEditingProject: (projectId, tab) => {
+                  state.wizardEditingProjectId = projectId || null;
+                  if (tab) state.wizardProjectEditTab = tab;
+                },
+              })
+            : nothing
+        }
+
+        ${
+          state.tab === "prompts"
+            ? renderWorkspacePrompts({
+                connected: state.connected,
+                client: state.client,
+                prompts: state.workspacePrompts || [],
+                onLoadPrompts: () => state.handleWorkspacePromptsLoad(),
+                onSavePrompt: (filename, content, enabled) =>
+                  state.handleWorkspacePromptsSave(filename, content, enabled),
               })
             : nothing
         }
@@ -630,8 +800,105 @@ export function renderApp(state: AppViewState) {
             : nothing
         }
       </main>
+      ${state.tab === "skills" ? renderSkillsModals({
+        loading: state.skillsLoading,
+        report: state.skillsReport,
+        error: state.skillsError,
+        filter: state.skillsFilter,
+        categoryFilter: state.skillsCategoryFilter || "all",
+        edits: state.skillEdits,
+        messages: state.skillMessages,
+        busyKey: state.skillsBusyKey,
+        client: state.client,
+        selectedSkillKey: state.selectedSkillKey,
+        editingContent: state.editingSkillContent,
+        onFilterChange: () => {},
+        onCategoryFilterChange: () => {},
+        onRefresh: () => Promise.resolve(),
+        onToggle: () => Promise.resolve(),
+        onEdit: () => {},
+        onSaveKey: () => Promise.resolve(),
+        onInstall: () => Promise.resolve(),
+        onSelectSkill: (skillKey) => (state.selectedSkillKey = skillKey),
+        onLoadSkillContent: () => Promise.resolve(),
+        onSaveSkillContent: () => Promise.resolve(),
+        onDeleteSkill: () => Promise.resolve(),
+        onTestSkill: () => Promise.resolve(),
+        onCreateSkill: () => {},
+        showCreateSkillModal: state.showCreateSkillModal,
+        newSkillName: state.newSkillName,
+        newSkillCategory: state.newSkillCategory,
+        newSkillContent: state.newSkillContent,
+        onNewSkillNameChange: () => {},
+        onNewSkillCategoryChange: () => {},
+        onNewSkillContentChange: () => {},
+        onSaveNewSkill: () => {},
+        onCloseCreateSkillModal: () => {
+          state.showCreateSkillModal = false;
+          state.newSkillName = "";
+          state.newSkillCategory = "";
+          state.newSkillContent = "";
+        },
+      }) : nothing}
+      ${state.tab === "tools" ? renderToolsModals({
+        loading: state.toolsLoading ?? false,
+        report: state.toolsReport ?? null,
+        error: state.toolsError ?? null,
+        filter: state.toolsFilter ?? "",
+        categoryFilter: state.toolsCategoryFilter ?? "all",
+        edits: state.toolEdits ?? {},
+        messages: state.toolMessages ?? {},
+        busyKey: state.toolsBusyKey ?? null,
+        client: state.client,
+        selectedToolKey: state.selectedToolKey ?? null,
+        editingContent: state.editingToolContent ?? "",
+        onFilterChange: () => {},
+        onCategoryFilterChange: () => {},
+        onRefresh: () => loadTools(state as any, { clearMessages: true }),
+        onToggle: (key: string, enabled: boolean) => updateToolEnabled(state as any, key, enabled),
+        onEdit: (key: string, value: string) => updateToolEdit(state as any, key, value),
+        onSaveKey: (key: string) => saveToolApiKey(state as any, key),
+        onInstall: (toolKey: string, name: string, installId: string) =>
+          installTool(state as any, toolKey, name, installId),
+        onSelectTool: (toolKey: string | null) => (state.selectedToolKey = toolKey),
+        onLoadToolContent: () => Promise.resolve(),
+        onSaveToolContent: () => Promise.resolve(),
+        onDeleteTool: () => Promise.resolve(),
+        onTestTool: () => Promise.resolve(),
+        onCreateTool: () => {},
+      }) : nothing}
       ${renderExecApprovalPrompt(state)}
       ${renderGatewayUrlConfirmation(state)}
+      ${renderAgentModal({
+        visible: state.agentModalVisible ?? false,
+        agent: state.agentModalAgent ?? null,
+        activeTab: state.agentModalTab ?? "info",
+        isSubmitting: state.agentModalSubmitting ?? false,
+        form: state.agentModalForm ?? createEmptyAgentForm(),
+        onTabChange: (tab) => { state.agentModalTab = tab; },
+        onFormChange: (field, value) => {
+          state.agentModalForm = { ...state.agentModalForm, [field]: value };
+        },
+        onSave: async () => {
+          state.agentModalSubmitting = true;
+          try {
+            // For now, just log and close - API integration would go here
+            console.log("Saving agent:", state.agentModalForm);
+            state.agentModalVisible = false;
+            loadAgents(state);
+          } finally {
+            state.agentModalSubmitting = false;
+          }
+        },
+        onDelete: async () => {
+          if (!state.agentModalAgent) return;
+          if (!confirm("Delete " + (state.agentModalAgent.name ?? "this agent") + "?")) return;
+          console.log("Deleting agent:", state.agentModalAgent.id);
+          state.agentModalVisible = false;
+          loadAgents(state);
+        },
+        onClose: () => { state.agentModalVisible = false; },
+      })}
     </div>
   `;
 }

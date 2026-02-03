@@ -188,7 +188,7 @@ function ensureListener() {
     return;
   }
   listenerStarted = true;
-  listenerStop = onAgentEvent((evt) => {
+  listenerStop = onAgentEvent(async (evt) => {
     if (!evt || evt.stream !== "lifecycle") {
       return;
     }
@@ -196,7 +196,33 @@ function ensureListener() {
     if (!entry) {
       return;
     }
+    
     const phase = evt.data?.phase;
+    
+    // Track agent activity for monitoring
+    try {
+      const { updateAgentActivity, registerAgentActivity } = await import("../wizard/agent-activity-monitor.js");
+      
+      if (phase === "start") {
+        registerAgentActivity({
+          agentId: entry.childSessionKey,
+          agentName: entry.label || "Sub-agent",
+          agentType: "sub-agent",
+          projectId: entry.task?.match(/Project ID: ([^\n]+)/)?.[1]?.trim(),
+          taskId: entry.task?.match(/Task ID: ([^\n]+)/)?.[1]?.trim(),
+          status: "working",
+          startedAt: new Date(entry.startedAt || Date.now()).toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      } else if (phase === "end" || phase === "error") {
+        updateAgentActivity(entry.childSessionKey, {
+          status: phase === "error" ? "error" : "completed",
+        });
+      }
+    } catch (err) {
+      // Ignore errors in activity tracking
+      console.error("Failed to track agent activity:", err);
+    }
     if (phase === "start") {
       const startedAt = typeof evt.data?.startedAt === "number" ? evt.data.startedAt : undefined;
       if (startedAt) {

@@ -356,11 +356,18 @@ export const registerTelegramNativeCommands = ({
     existingCommands.add(normalized);
     pluginCommands.push({ command: normalized, description });
   }
+  // Add wizard project commands
+  const wizardProjectCommands: Array<{ command: string; description: string }> = [
+    { command: "project", description: "Manage wizard dashboard projects" },
+    { command: "proj", description: "Manage wizard dashboard projects (short)" },
+  ];
+  
   const allCommands: Array<{ command: string; description: string }> = [
     ...nativeCommands.map((command) => ({
       command: command.name,
       description: command.description,
     })),
+    ...wizardProjectCommands,
     ...pluginCommands,
     ...customCommands,
   ];
@@ -596,6 +603,48 @@ export const registerTelegramNativeCommands = ({
               tableMode,
               chunkMode,
               linkPreview: telegramCfg.linkPreview,
+            });
+          }
+        });
+      }
+
+      // Register wizard project commands
+      for (const projectCmd of ["project", "proj"]) {
+        bot.command(projectCmd, async (ctx: TelegramNativeCommandContext) => {
+          const msg = ctx.message;
+          if (!msg) {
+            return;
+          }
+          if (shouldSkipUpdate(ctx)) {
+            return;
+          }
+          const chatId = String(msg.chat.id);
+          const senderId = msg.from?.id ? String(msg.from.id) : "";
+          const rawText = ctx.match?.trim() ?? "";
+          const args = rawText ? rawText.split(/\s+/) : [];
+          
+          try {
+            const { handleTelegramProjectCommand } = await import("../wizard/telegram-project-commands.js");
+            const response = await handleTelegramProjectCommand({
+              command: projectCmd === "proj" ? "/proj" : "/project",
+              args,
+              userId: senderId,
+              chatId,
+            });
+            
+            await withTelegramApiErrorLogging({
+              operation: "sendMessage",
+              runtime,
+              fn: () => bot.api.sendMessage(Number(chatId), response, {
+                parse_mode: "Markdown",
+              }),
+            });
+          } catch (err) {
+            runtime.error?.(danger(`telegram project command failed: ${String(err)}`));
+            await withTelegramApiErrorLogging({
+              operation: "sendMessage",
+              runtime,
+              fn: () => bot.api.sendMessage(Number(chatId), `Error: ${String(err)}`),
             });
           }
         });

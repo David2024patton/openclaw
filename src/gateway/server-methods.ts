@@ -17,6 +17,7 @@ import { nodeHandlers } from "./server-methods/nodes.js";
 import { sendHandlers } from "./server-methods/send.js";
 import { sessionsHandlers } from "./server-methods/sessions.js";
 import { skillsHandlers } from "./server-methods/skills.js";
+import { toolsHandlers } from "./server-methods/tools.js";
 import { systemHandlers } from "./server-methods/system.js";
 import { talkHandlers } from "./server-methods/talk.js";
 import { ttsHandlers } from "./server-methods/tts.js";
@@ -25,6 +26,9 @@ import { usageHandlers } from "./server-methods/usage.js";
 import { voicewakeHandlers } from "./server-methods/voicewake.js";
 import { webHandlers } from "./server-methods/web.js";
 import { wizardHandlers } from "./server-methods/wizard.js";
+import { wizardTasksHandlers } from "./server-methods/wizard-tasks.js";
+import { wizardAgentMonitorHandlers } from "./server-methods/wizard-agent-monitor.js";
+import { workspacePromptsHandlers } from "./server-methods/workspace-prompts.js";
 
 const ADMIN_SCOPE = "operator.admin";
 const READ_SCOPE = "operator.read";
@@ -61,6 +65,8 @@ const READ_METHODS = new Set([
   "agents.list",
   "agent.identity.get",
   "skills.status",
+  "tools.list",
+  "tools.get",
   "voicewake.get",
   "sessions.list",
   "sessions.preview",
@@ -173,9 +179,13 @@ export const coreGatewayHandlers: GatewayRequestHandlers = {
   ...modelsHandlers,
   ...configHandlers,
   ...wizardHandlers,
+  ...wizardTasksHandlers,
+  ...wizardAgentMonitorHandlers,
+  ...workspacePromptsHandlers,
   ...talkHandlers,
   ...ttsHandlers,
   ...skillsHandlers,
+  ...toolsHandlers,
   ...sessionsHandlers,
   ...systemHandlers,
   ...updateHandlers,

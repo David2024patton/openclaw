@@ -314,12 +314,16 @@ export type PresenceEntry = {
   reason?: string | null;
   text?: string | null;
   ts?: number | null;
+  roles?: string[];
+  scopes?: string[];
 };
 
 export type GatewaySessionsDefaults = {
   model: string | null;
   contextTokens: number | null;
 };
+
+export type AgentStatus = 'standby' | 'working' | 'offline';
 
 export type GatewayAgentRow = {
   id: string;
@@ -331,7 +335,19 @@ export type GatewayAgentRow = {
     avatar?: string;
     avatarUrl?: string;
   };
+  // Extended fields for agent management
+  role?: string;
+  description?: string;
+  avatar_emoji?: string;
+  status?: AgentStatus;
+  is_master?: boolean;
+  soul_md?: string;
+  user_md?: string;
+  agents_md?: string;
+  created_at?: string;
+  updated_at?: string;
 };
+
 
 export type AgentsListResult = {
   defaultId: string;
@@ -508,6 +524,57 @@ export type SkillStatusReport = {
   workspaceDir: string;
   managedSkillsDir: string;
   skills: SkillStatusEntry[];
+};
+
+export type ToolStatusEntry = {
+  name: string;
+  description: string;
+  source: string;
+  filePath: string;
+  baseDir: string;
+  toolKey: string;
+  category: string;
+  primaryEnv?: string;
+  emoji?: string;
+  homepage?: string;
+  always: boolean;
+  disabled: boolean;
+  blockedByAllowlist: boolean;
+  eligible: boolean;
+  enabled: boolean;
+  requirements: {
+    bins: string[];
+    env: string[];
+    config: string[];
+    os: string[];
+  };
+  missing: {
+    bins: string[];
+    env: string[];
+    config: string[];
+    os: string[];
+  };
+  configChecks: ToolsStatusConfigCheck[];
+  install: ToolInstallOption[];
+};
+
+export type ToolsStatusConfigCheck = {
+  path: string;
+  value: unknown;
+  satisfied: boolean;
+};
+
+export type ToolInstallOption = {
+  id: string;
+  kind: "brew" | "node" | "go" | "uv";
+  label: string;
+  bins: string[];
+};
+
+export type ToolStatusReport = {
+  workspaceDir: string;
+  managedToolsDir: string;
+  tools: ToolStatusEntry[];
 };
 
 export type StatusSummary = Record<string, unknown>;

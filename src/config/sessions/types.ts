@@ -93,6 +93,8 @@ export type SessionEntry = {
   lastThreadId?: string | number;
   skillsSnapshot?: SessionSkillSnapshot;
   systemPromptReport?: SessionSystemPromptReport;
+  /** Active wizard project ID for this session */
+  wizardActiveProjectId?: string;
 };
 
 export function mergeSessionEntry(

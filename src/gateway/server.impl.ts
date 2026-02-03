@@ -35,6 +35,9 @@ import { scheduleGatewayUpdateCheck } from "../infra/update-startup.js";
 import { startDiagnosticHeartbeat, stopDiagnosticHeartbeat } from "../logging/diagnostic.js";
 import { createSubsystemLogger, runtimeForLogger } from "../logging/subsystem.js";
 import { runOnboardingWizard } from "../wizard/onboarding.js";
+import { startTestingMonitor, stopTestingMonitor } from "../wizard/testing-monitor.js";
+import { startVisualTestingMonitor, stopVisualTestingMonitor } from "../wizard/visual-testing-monitor.js";
+import { startTaskPickerMonitor, stopTaskPickerMonitor } from "../wizard/task-picker-monitor.js";
 import { startGatewayConfigReloader } from "./config-reload.js";
 import { ExecApprovalManager } from "./exec-approval-manager.js";
 import { NodeRegistry } from "./node-registry.js";
@@ -414,6 +417,13 @@ export async function startGatewayServer(
   let heartbeatRunner = startHeartbeatRunner({ cfg: cfgAtStart });
 
   void cron.start().catch((err) => logCron.error(`failed to start: ${String(err)}`));
+  void startTestingMonitor().catch((err) => log.error(`testing monitor failed to start: ${String(err)}`));
+  try {
+    startVisualTestingMonitor();
+  } catch (err) {
+    log.error(`visual testing monitor failed to start: ${String(err)}`);
+  }
+  void startTaskPickerMonitor().catch((err) => log.error(`task picker monitor failed to start: ${String(err)}`));
 
   const execApprovalManager = new ExecApprovalManager();
   const execApprovalForwarder = createExecApprovalForwarder();
@@ -584,6 +594,9 @@ export async function startGatewayServer(
         skillsRefreshTimer = null;
       }
       skillsChangeUnsub();
+      stopTestingMonitor();
+      stopVisualTestingMonitor();
+      stopTaskPickerMonitor();
       await close(opts);
     },
   };

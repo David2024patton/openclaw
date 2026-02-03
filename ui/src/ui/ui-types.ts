@@ -4,6 +4,23 @@ export type ChatAttachment = {
   mimeType: string;
 };
 
+// Generic API response type for gateway requests
+export type ApiResponse<T = unknown> = {
+  success?: boolean;
+  result?: T;
+  error?: string;
+};
+
+export type WorkspacePromptsResponse = ApiResponse<{ prompts: WorkspacePromptFile[] }>;
+export type SkillContentResponse = ApiResponse<{ content: string }>;
+
+// Forward declaration for WorkspacePromptFile (actual type in views/workspace-prompts.ts)
+export type WorkspacePromptFile = {
+  path: string;
+  content: string;
+  name?: string;
+};
+
 export type ChatQueueItem = {
   id: string;
   text: string;

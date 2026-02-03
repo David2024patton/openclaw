@@ -23,7 +23,7 @@ type LoadSkillsOptions = {
   clearMessages?: boolean;
 };
 
-function setSkillMessage(state: SkillsState, key: string, message?: SkillMessage) {
+export function setSkillMessage(state: SkillsState, key: string, message?: SkillMessage) {
   if (!key.trim()) return;
   const next = { ...state.skillMessages };
   if (message) next[key] = message;

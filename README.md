@@ -69,7 +69,7 @@
    ```
 
 3. **Build the Docker image:**
-   ```bash
+```bash
    cd openclaw
    docker build -t openclaw:local .
    ```
@@ -77,10 +77,10 @@
 4. **Start the containers:**
    ```bash
    docker-compose up -d
-   ```
+```
 
 5. **Access the Control UI:**
-   
+
    Open your browser and navigate to:
    ```
    http://localhost:45934?token=your-secure-token-here
@@ -89,12 +89,12 @@
 ### Managing the Container
 
 - **View logs:**
-  ```bash
+```bash
   docker-compose logs -f openclaw-gateway
   ```
 
 - **Restart the gateway:**
-  ```bash
+```bash
   docker-compose restart openclaw-gateway
   ```
 
