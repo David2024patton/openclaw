@@ -1,23 +1,18 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ES2020"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "jsx": "react-jsx",
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "dist-electron",
-    "types": ["node"],
-    "noEmit": true
+    "types": ["node"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/main.ts", "src/preload.ts", "src/electron-adapter.ts", "src/ipc-handlers.ts"],
   "exclude": ["node_modules", "dist", "dist-electron", "release"]
 }

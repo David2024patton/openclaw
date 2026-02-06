@@ -37,7 +37,6 @@ const originalProcessExit = process.exit;
  * This is called during adapter initialization
  */
 function patchProcessExit(): void {
-  // @ts-expect-error - Overriding process.exit signature
   process.exit = function(code?: number): never {
     state.exitAttempts++;
     const msg = `CLI attempted process.exit(${code ?? 0}) - prevented (attempt #${state.exitAttempts})`;
@@ -45,9 +44,8 @@ function patchProcessExit(): void {
     if (state.logger) {
       state.logger('warn', msg);
     }
-    // Don't actually exit - just throw to break execution
     throw new Error(`Process exit prevented: exit code ${code ?? 0}`);
-  };
+  } as typeof process.exit;
 }
 
 /**
@@ -125,7 +123,7 @@ export async function startAgent(): Promise<{ success: boolean; message: string 
     }
     
     // Import CLI module
-    const cliModule = await importCliDist();
+    await importCliDist();
     
     // TODO: Once the CLI exports a programmatic API (e.g., runCli or startAgent),
     // invoke it here. For now, this is a placeholder.
@@ -191,7 +189,7 @@ export async function runCommand(args: string[]): Promise<{ success: boolean; ou
     }
     
     // Import CLI module
-    const cliModule = await importCliDist();
+    await importCliDist();
     
     // TODO: Invoke CLI programmatically with args
     // Example: const result = await cliModule.runCli(args);
