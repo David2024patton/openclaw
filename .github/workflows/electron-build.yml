@@ -1,0 +1,73 @@
+name: Electron App Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/electron/**"
+      - "src/**"
+      - "package.json"
+      - ".github/workflows/electron-build.yml"
+
+jobs:
+  build-electron:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.23.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build repository distribution
+        run: pnpm build
+
+      - name: Install Electron app dependencies
+        working-directory: apps/electron
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Electron app
+        working-directory: apps/electron
+        run: pnpm build
+
+      - name: Package Electron app
+        working-directory: apps/electron
+        run: pnpm dist:linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-linux-appimage
+          path: apps/electron/release/*.AppImage
+          if-no-files-found: warn
+
+      - name: Upload Linux DEB
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-linux-deb
+          path: apps/electron/release/*.deb
+          if-no-files-found: warn
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-build-logs
+          path: |
+            apps/electron/release/*.log
+            apps/electron/dist-electron/
+          if-no-files-found: ignore
