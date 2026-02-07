@@ -9,7 +9,7 @@ import type {
   TelegramTopicConfig,
 } from "../config/types.js";
 import type { RuntimeEnv } from "../runtime.js";
-import { resolveEffectiveMessagesConfig } from "../agents/identity.js";
+import type { TelegramContext } from "./bot/types.js";
 import { resolveChunkMode } from "../auto-reply/chunk.js";
 import {
   buildCommandTextFromArgs,
@@ -23,6 +23,7 @@ import { finalizeInboundContext } from "../auto-reply/reply/inbound-context.js";
 import { dispatchReplyWithBufferedBlockDispatcher } from "../auto-reply/reply/provider-dispatcher.js";
 import { listSkillCommandsForAgents } from "../auto-reply/skill-commands.js";
 import { resolveCommandAuthorizedFromAuthorizers } from "../channels/command-gating.js";
+import { createReplyPrefixOptions } from "../channels/reply-prefix.js";
 import { resolveMarkdownTableMode } from "../config/markdown-tables.js";
 import { resolveTelegramCustomCommands } from "../config/telegram-custom-commands.js";
 import {
@@ -49,6 +50,7 @@ import {
   buildSenderName,
   buildTelegramGroupFrom,
   buildTelegramGroupPeerId,
+  buildTelegramParentPeer,
   resolveTelegramForumThreadId,
   resolveTelegramThreadSpec,
 } from "./bot/helpers.js";
@@ -86,7 +88,7 @@ export type RegisterTelegramHandlerParams = {
   ) => { groupConfig?: TelegramGroupConfig; topicConfig?: TelegramTopicConfig };
   shouldSkipUpdate: (ctx: TelegramUpdateKeyContext) => boolean;
   processMessage: (
-    ctx: unknown,
+    ctx: TelegramContext,
     allMedia: Array<{ path: string; contentType?: string }>,
     storeAllowFrom: string[],
     options?: {
@@ -361,7 +363,7 @@ export const registerTelegramNativeCommands = ({
     { command: "project", description: "Manage wizard dashboard projects" },
     { command: "proj", description: "Manage wizard dashboard projects (short)" },
   ];
-  
+
   const allCommands: Array<{ command: string; description: string }> = [
     ...nativeCommands.map((command) => ({
       command: command.name,
@@ -475,6 +477,7 @@ export const registerTelegramNativeCommands = ({
             });
             return;
           }
+          const parentPeer = buildTelegramParentPeer({ isGroup, resolvedThreadId, chatId });
           const route = resolveAgentRoute({
             cfg,
             channel: "telegram",
@@ -483,6 +486,7 @@ export const registerTelegramNativeCommands = ({
               kind: isGroup ? "group" : "dm",
               id: isGroup ? buildTelegramGroupPeerId(chatId, resolvedThreadId) : String(chatId),
             },
+            parentPeer,
           });
           const baseSessionKey = route.sessionKey;
           // DMs: use raw messageThreadId for thread sessions (not resolvedThreadId which is for forums)
@@ -553,11 +557,18 @@ export const registerTelegramNativeCommands = ({
             skippedNonSilent: 0,
           };
 
+          const { onModelSelected, ...prefixOptions } = createReplyPrefixOptions({
+            cfg,
+            agentId: route.agentId,
+            channel: "telegram",
+            accountId: route.accountId,
+          });
+
           await dispatchReplyWithBufferedBlockDispatcher({
             ctx: ctxPayload,
             cfg,
             dispatcherOptions: {
-              responsePrefix: resolveEffectiveMessagesConfig(cfg, route.agentId).responsePrefix,
+              ...prefixOptions,
               deliver: async (payload, _info) => {
                 const result = await deliverReplies({
                   replies: [payload],
@@ -588,6 +599,7 @@ export const registerTelegramNativeCommands = ({
             replyOptions: {
               skillFilter,
               disableBlockStreaming,
+              onModelSelected,
             },
           });
           if (!deliveryState.delivered && deliveryState.skippedNonSilent > 0) {
@@ -622,22 +634,24 @@ export const registerTelegramNativeCommands = ({
           const senderId = msg.from?.id ? String(msg.from.id) : "";
           const rawText = ctx.match?.trim() ?? "";
           const args = rawText ? rawText.split(/\s+/) : [];
-          
+
           try {
-            const { handleTelegramProjectCommand } = await import("../wizard/telegram-project-commands.js");
+            const { handleTelegramProjectCommand } =
+              await import("../wizard/telegram-project-commands.js");
             const response = await handleTelegramProjectCommand({
               command: projectCmd === "proj" ? "/proj" : "/project",
               args,
               userId: senderId,
               chatId,
             });
-            
+
             await withTelegramApiErrorLogging({
               operation: "sendMessage",
               runtime,
-              fn: () => bot.api.sendMessage(Number(chatId), response, {
-                parse_mode: "Markdown",
-              }),
+              fn: () =>
+                bot.api.sendMessage(Number(chatId), response, {
+                  parse_mode: "Markdown",
+                }),
             });
           } catch (err) {
             runtime.error?.(danger(`telegram project command failed: ${String(err)}`));

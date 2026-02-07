@@ -309,21 +309,19 @@ export type PresenceEntry = {
   platform?: string | null;
   deviceFamily?: string | null;
   modelIdentifier?: string | null;
+  roles?: string[] | null;
+  scopes?: string[] | null;
   mode?: string | null;
   lastInputSeconds?: number | null;
   reason?: string | null;
   text?: string | null;
   ts?: number | null;
-  roles?: string[];
-  scopes?: string[];
 };
 
 export type GatewaySessionsDefaults = {
   model: string | null;
   contextTokens: number | null;
 };
-
-export type AgentStatus = 'standby' | 'working' | 'offline';
 
 export type GatewayAgentRow = {
   id: string;
@@ -335,25 +333,48 @@ export type GatewayAgentRow = {
     avatar?: string;
     avatarUrl?: string;
   };
-  // Extended fields for agent management
-  role?: string;
-  description?: string;
-  avatar_emoji?: string;
-  status?: AgentStatus;
-  is_master?: boolean;
-  soul_md?: string;
-  user_md?: string;
-  agents_md?: string;
-  created_at?: string;
-  updated_at?: string;
 };
-
 
 export type AgentsListResult = {
   defaultId: string;
   mainKey: string;
   scope: string;
   agents: GatewayAgentRow[];
+};
+
+export type AgentIdentityResult = {
+  agentId: string;
+  name: string;
+  avatar: string;
+  emoji?: string;
+};
+
+export type AgentFileEntry = {
+  name: string;
+  path: string;
+  missing: boolean;
+  size?: number;
+  updatedAtMs?: number;
+  content?: string;
+};
+
+export type AgentsFilesListResult = {
+  agentId: string;
+  workspace: string;
+  files: AgentFileEntry[];
+};
+
+export type AgentsFilesGetResult = {
+  agentId: string;
+  workspace: string;
+  file: AgentFileEntry;
+};
+
+export type AgentsFilesSetResult = {
+  ok: true;
+  agentId: string;
+  workspace: string;
+  file: AgentFileEntry;
 };
 
 export type GatewaySessionRow = {
@@ -403,8 +424,225 @@ export type SessionsPatchResult = {
   };
 };
 
+export type SessionsUsageEntry = {
+  key: string;
+  label?: string;
+  sessionId?: string;
+  updatedAt?: number;
+  agentId?: string;
+  channel?: string;
+  chatType?: string;
+  origin?: {
+    label?: string;
+    provider?: string;
+    surface?: string;
+    chatType?: string;
+    from?: string;
+    to?: string;
+    accountId?: string;
+    threadId?: string | number;
+  };
+  modelOverride?: string;
+  providerOverride?: string;
+  modelProvider?: string;
+  model?: string;
+  usage: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+    totalTokens: number;
+    totalCost: number;
+    inputCost?: number;
+    outputCost?: number;
+    cacheReadCost?: number;
+    cacheWriteCost?: number;
+    missingCostEntries: number;
+    firstActivity?: number;
+    lastActivity?: number;
+    durationMs?: number;
+    activityDates?: string[]; // YYYY-MM-DD dates when session had activity
+    dailyBreakdown?: Array<{ date: string; tokens: number; cost: number }>;
+    dailyMessageCounts?: Array<{
+      date: string;
+      total: number;
+      user: number;
+      assistant: number;
+      toolCalls: number;
+      toolResults: number;
+      errors: number;
+    }>;
+    dailyLatency?: Array<{
+      date: string;
+      count: number;
+      avgMs: number;
+      p95Ms: number;
+      minMs: number;
+      maxMs: number;
+    }>;
+    dailyModelUsage?: Array<{
+      date: string;
+      provider?: string;
+      model?: string;
+      tokens: number;
+      cost: number;
+      count: number;
+    }>;
+    messageCounts?: {
+      total: number;
+      user: number;
+      assistant: number;
+      toolCalls: number;
+      toolResults: number;
+      errors: number;
+    };
+    toolUsage?: {
+      totalCalls: number;
+      uniqueTools: number;
+      tools: Array<{ name: string; count: number }>;
+    };
+    modelUsage?: Array<{
+      provider?: string;
+      model?: string;
+      count: number;
+      totals: SessionsUsageTotals;
+    }>;
+    latency?: {
+      count: number;
+      avgMs: number;
+      p95Ms: number;
+      minMs: number;
+      maxMs: number;
+    };
+  } | null;
+  contextWeight?: {
+    systemPrompt: { chars: number; projectContextChars: number; nonProjectContextChars: number };
+    skills: { promptChars: number; entries: Array<{ name: string; blockChars: number }> };
+    tools: {
+      listChars: number;
+      schemaChars: number;
+      entries: Array<{ name: string; summaryChars: number; schemaChars: number }>;
+    };
+    injectedWorkspaceFiles: Array<{
+      name: string;
+      path: string;
+      rawChars: number;
+      injectedChars: number;
+      truncated: boolean;
+    }>;
+  } | null;
+};
+
+export type SessionsUsageTotals = {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  totalTokens: number;
+  totalCost: number;
+  inputCost: number;
+  outputCost: number;
+  cacheReadCost: number;
+  cacheWriteCost: number;
+  missingCostEntries: number;
+};
+
+export type SessionsUsageResult = {
+  updatedAt: number;
+  startDate: string;
+  endDate: string;
+  sessions: SessionsUsageEntry[];
+  totals: SessionsUsageTotals;
+  aggregates: {
+    messages: {
+      total: number;
+      user: number;
+      assistant: number;
+      toolCalls: number;
+      toolResults: number;
+      errors: number;
+    };
+    tools: {
+      totalCalls: number;
+      uniqueTools: number;
+      tools: Array<{ name: string; count: number }>;
+    };
+    byModel: Array<{
+      provider?: string;
+      model?: string;
+      count: number;
+      totals: SessionsUsageTotals;
+    }>;
+    byProvider: Array<{
+      provider?: string;
+      model?: string;
+      count: number;
+      totals: SessionsUsageTotals;
+    }>;
+    byAgent: Array<{ agentId: string; totals: SessionsUsageTotals }>;
+    byChannel: Array<{ channel: string; totals: SessionsUsageTotals }>;
+    latency?: {
+      count: number;
+      avgMs: number;
+      p95Ms: number;
+      minMs: number;
+      maxMs: number;
+    };
+    dailyLatency?: Array<{
+      date: string;
+      count: number;
+      avgMs: number;
+      p95Ms: number;
+      minMs: number;
+      maxMs: number;
+    }>;
+    modelDaily?: Array<{
+      date: string;
+      provider?: string;
+      model?: string;
+      tokens: number;
+      cost: number;
+      count: number;
+    }>;
+    daily: Array<{
+      date: string;
+      tokens: number;
+      cost: number;
+      messages: number;
+      toolCalls: number;
+      errors: number;
+    }>;
+  };
+};
+
+export type CostUsageDailyEntry = SessionsUsageTotals & { date: string };
+
+export type CostUsageSummary = {
+  updatedAt: number;
+  days: number;
+  daily: CostUsageDailyEntry[];
+  totals: SessionsUsageTotals;
+};
+
+export type SessionUsageTimePoint = {
+  timestamp: number;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  totalTokens: number;
+  cost: number;
+  cumulativeTokens: number;
+  cumulativeCost: number;
+};
+
+export type SessionUsageTimeSeries = {
+  sessionId?: string;
+  points: SessionUsageTimePoint[];
+};
+
 export type CronSchedule =
-  | { kind: "at"; atMs: number }
+  | { kind: "at"; at: string }
   | { kind: "every"; everyMs: number; anchorMs?: number }
   | { kind: "cron"; expr: string; tz?: string };
 
@@ -418,22 +656,13 @@ export type CronPayload =
       message: string;
       thinking?: string;
       timeoutSeconds?: number;
-      deliver?: boolean;
-      provider?:
-        | "last"
-        | "whatsapp"
-        | "telegram"
-        | "discord"
-        | "slack"
-        | "signal"
-        | "imessage"
-        | "msteams";
-      to?: string;
-      bestEffortDeliver?: boolean;
     };
 
-export type CronIsolation = {
-  postToMainPrefix?: string;
+export type CronDelivery = {
+  mode: "none" | "announce";
+  channel?: string;
+  to?: string;
+  bestEffort?: boolean;
 };
 
 export type CronJobState = {
@@ -458,7 +687,7 @@ export type CronJob = {
   sessionTarget: CronSessionTarget;
   wakeMode: CronWakeMode;
   payload: CronPayload;
-  isolation?: CronIsolation;
+  delivery?: CronDelivery;
   state?: CronJobState;
 };
 
@@ -475,6 +704,8 @@ export type CronRunLogEntry = {
   durationMs?: number;
   error?: string;
   summary?: string;
+  sessionId?: string;
+  sessionKey?: string;
 };
 
 export type SkillsStatusConfigCheck = {
@@ -497,6 +728,7 @@ export type SkillStatusEntry = {
   filePath: string;
   baseDir: string;
   skillKey: string;
+  bundled?: boolean;
   primaryEnv?: string;
   emoji?: string;
   homepage?: string;
@@ -524,57 +756,6 @@ export type SkillStatusReport = {
   workspaceDir: string;
   managedSkillsDir: string;
   skills: SkillStatusEntry[];
-};
-
-export type ToolStatusEntry = {
-  name: string;
-  description: string;
-  source: string;
-  filePath: string;
-  baseDir: string;
-  toolKey: string;
-  category: string;
-  primaryEnv?: string;
-  emoji?: string;
-  homepage?: string;
-  always: boolean;
-  disabled: boolean;
-  blockedByAllowlist: boolean;
-  eligible: boolean;
-  enabled: boolean;
-  requirements: {
-    bins: string[];
-    env: string[];
-    config: string[];
-    os: string[];
-  };
-  missing: {
-    bins: string[];
-    env: string[];
-    config: string[];
-    os: string[];
-  };
-  configChecks: ToolsStatusConfigCheck[];
-  install: ToolInstallOption[];
-};
-
-export type ToolsStatusConfigCheck = {
-  path: string;
-  value: unknown;
-  satisfied: boolean;
-};
-
-export type ToolInstallOption = {
-  id: string;
-  kind: "brew" | "node" | "go" | "uv";
-  label: string;
-  bins: string[];
-};
-
-export type ToolStatusReport = {
-  workspaceDir: string;
-  managedToolsDir: string;
-  tools: ToolStatusEntry[];
 };
 
 export type StatusSummary = Record<string, unknown>;

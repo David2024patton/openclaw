@@ -1,16 +1,18 @@
-import type { EventLogEntry } from "./app-events";
-import type { DevicePairingList } from "./controllers/devices";
-import type { ExecApprovalRequest } from "./controllers/exec-approval";
-import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals";
-import type { SkillMessage } from "./controllers/skills";
-import type { ToolMessage } from "./controllers/tools";
-import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway";
-import type { Tab } from "./navigation";
-import type { UiSettings } from "./storage";
-import type { ThemeMode } from "./theme";
-import type { ThemeTransitionContext } from "./theme-transition";
+import type { EventLogEntry } from "./app-events.ts";
+import type { CompactionStatus } from "./app-tool-stream.ts";
+import type { DevicePairingList } from "./controllers/devices.ts";
+import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
+import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
+import type { SkillMessage } from "./controllers/skills.ts";
+import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway.ts";
+import type { Tab } from "./navigation.ts";
+import type { UiSettings } from "./storage.ts";
+import type { ThemeTransitionContext } from "./theme-transition.ts";
+import type { ThemeMode } from "./theme.ts";
 import type {
   AgentsListResult,
+  AgentsFilesListResult,
+  AgentIdentityResult,
   ChannelsStatusSnapshot,
   ConfigSnapshot,
   ConfigUiHints,
@@ -22,16 +24,16 @@ import type {
   LogLevel,
   NostrProfile,
   PresenceEntry,
+  SessionsUsageResult,
+  CostUsageSummary,
+  SessionUsageTimeSeries,
   SessionsListResult,
   SkillStatusReport,
-  ToolStatusReport,
   StatusSummary,
-} from "./types";
-import type { ChatAttachment, ChatQueueItem, CronFormState } from "./ui-types";
-import type { NostrProfileFormState } from "./views/channels.nostr-profile-form";
-import type { CompactionIndicatorStatus } from "./views/chat";
-import type { WizardProject } from "./views/wizard";
-import type { WorkspacePromptFile } from "./views/workspace-prompts";
+} from "./types.ts";
+import type { ChatAttachment, ChatQueueItem, CronFormState } from "./ui-types.ts";
+import type { NostrProfileFormState } from "./views/channels.nostr-profile-form.ts";
+import type { SessionLogEntry } from "./views/usage.ts";
 
 export type AppViewState = {
   settings: UiSettings;
@@ -56,33 +58,20 @@ export type AppViewState = {
   chatMessages: unknown[];
   chatToolMessages: unknown[];
   chatStream: string | null;
+  chatStreamStartedAt: number | null;
   chatRunId: string | null;
+  compactionStatus: CompactionStatus | null;
   chatAvatarUrl: string | null;
   chatThinkingLevel: string | null;
   chatQueue: ChatQueueItem[];
-  chatStreamStartedAt: number | null;
-  chatHasAutoScrolled: boolean;
-  refreshSessionsAfterChat: Set<string>;
-  compactionStatus: CompactionIndicatorStatus | null;
-  applySessionKey: string;
-  configSchemaVersion: string | null;
-  configSearchQuery: string;
-  configActiveSection: string | null;
-  configActiveSubsection: string | null;
-  logsAtBottom: boolean;
-  eventLogBuffer: EventLogEntry[];
-  logsCursor: number | null;
-  logsLastFetchAt: number | null;
-  logsLimit: number;
-  logsMaxBytes: number;
+  nodesLoading: boolean;
+  nodes: Array<Record<string, unknown>>;
+  chatNewMessagesBelow: boolean;
   sidebarOpen: boolean;
   sidebarContent: string | null;
   sidebarError: string | null;
   splitRatio: number;
-  workspacePrompts: WorkspacePromptFile[];
-  wizardProjectEditTab: "prompt" | "research" | "features" | "details";
-  nodesLoading: boolean;
-  nodes: Array<Record<string, unknown>>;
+  scrollToBottom: () => void;
   devicesLoading: boolean;
   devicesError: string | null;
   devicesList: DevicePairingList | null;
@@ -106,13 +95,18 @@ export type AppViewState = {
   configSaving: boolean;
   configApplying: boolean;
   updateRunning: boolean;
+  applySessionKey: string;
   configSnapshot: ConfigSnapshot | null;
-  configSchema: unknown | null;
+  configSchema: unknown;
+  configSchemaVersion: string | null;
   configSchemaLoading: boolean;
   configUiHints: ConfigUiHints;
   configForm: Record<string, unknown> | null;
   configFormOriginal: Record<string, unknown> | null;
   configFormMode: "form" | "raw";
+  configSearchQuery: string;
+  configActiveSection: string | null;
+  configActiveSubsection: string | null;
   channelsLoading: boolean;
   channelsSnapshot: ChannelsStatusSnapshot | null;
   channelsError: string | null;
@@ -131,13 +125,22 @@ export type AppViewState = {
   agentsLoading: boolean;
   agentsList: AgentsListResult | null;
   agentsError: string | null;
-  // Agent modal state
-  agentModalVisible: boolean;
-  agentModalAgent: import("./types").GatewayAgentRow | null;
-  agentModalTab: "info" | "soul" | "user" | "agents";
-  agentModalForm: import("./views/agent-modal").AgentFormData;
-  agentModalSubmitting: boolean;
-
+  agentsSelectedId: string | null;
+  agentsPanel: "overview" | "files" | "tools" | "skills" | "channels" | "cron";
+  agentFilesLoading: boolean;
+  agentFilesError: string | null;
+  agentFilesList: AgentsFilesListResult | null;
+  agentFileContents: Record<string, string>;
+  agentFileDrafts: Record<string, string>;
+  agentFileActive: string | null;
+  agentFileSaving: boolean;
+  agentIdentityLoading: boolean;
+  agentIdentityError: string | null;
+  agentIdentityById: Record<string, AgentIdentityResult>;
+  agentSkillsLoading: boolean;
+  agentSkillsError: string | null;
+  agentSkillsReport: SkillStatusReport | null;
+  agentSkillsAgentId: string | null;
   sessionsLoading: boolean;
   sessionsResult: SessionsListResult | null;
   sessionsError: string | null;
@@ -145,6 +148,39 @@ export type AppViewState = {
   sessionsFilterLimit: string;
   sessionsIncludeGlobal: boolean;
   sessionsIncludeUnknown: boolean;
+  usageLoading: boolean;
+  usageResult: SessionsUsageResult | null;
+  usageCostSummary: CostUsageSummary | null;
+  usageError: string | null;
+  usageStartDate: string;
+  usageEndDate: string;
+  usageSelectedSessions: string[];
+  usageSelectedDays: string[];
+  usageSelectedHours: number[];
+  usageChartMode: "tokens" | "cost";
+  usageDailyChartMode: "total" | "by-type";
+  usageTimeSeriesMode: "cumulative" | "per-turn";
+  usageTimeSeriesBreakdownMode: "total" | "by-type";
+  usageTimeSeries: SessionUsageTimeSeries | null;
+  usageTimeSeriesLoading: boolean;
+  usageSessionLogs: SessionLogEntry[] | null;
+  usageSessionLogsLoading: boolean;
+  usageSessionLogsExpanded: boolean;
+  usageQuery: string;
+  usageQueryDraft: string;
+  usageQueryDebounceTimer: number | null;
+  usageSessionSort: "tokens" | "cost" | "recent" | "messages" | "errors";
+  usageSessionSortDir: "asc" | "desc";
+  usageRecentSessions: string[];
+  usageTimeZone: "local" | "utc";
+  usageContextExpanded: boolean;
+  usageHeaderPinned: boolean;
+  usageSessionsTab: "all" | "recent";
+  usageVisibleColumns: string[];
+  usageLogFilterRoles: import("./views/usage.js").SessionLogRole[];
+  usageLogFilterTools: string[];
+  usageLogFilterHasTools: boolean;
+  usageLogFilterQuery: string;
   cronLoading: boolean;
   cronJobs: CronJob[];
   cronStatus: CronStatus | null;
@@ -157,28 +193,14 @@ export type AppViewState = {
   skillsReport: SkillStatusReport | null;
   skillsError: string | null;
   skillsFilter: string;
-  skillsCategoryFilter: string;
   skillEdits: Record<string, string>;
   skillMessages: Record<string, SkillMessage>;
   skillsBusyKey: string | null;
-  selectedSkillKey: string | null;
-  editingSkillContent: string;
-  // Tools state (parallel to Skills)
-  toolsLoading: boolean;
-  toolsReport: ToolStatusReport | null;
-  toolsError: string | null;
-  toolsFilter: string;
-  toolsCategoryFilter: string;
-  toolEdits: Record<string, string>;
-  toolMessages: Record<string, ToolMessage>;
-  toolsBusyKey: string | null;
-  selectedToolKey: string | null;
-  editingToolContent: string;
   debugLoading: boolean;
   debugStatus: StatusSummary | null;
   debugHealth: HealthSnapshot | null;
   debugModels: unknown[];
-  debugHeartbeat: unknown | null;
+  debugHeartbeat: unknown;
   debugCallMethod: string;
   debugCallParams: string;
   debugCallResult: string | null;
@@ -191,15 +213,13 @@ export type AppViewState = {
   logsLevelFilters: Record<LogLevel, boolean>;
   logsAutoFollow: boolean;
   logsTruncated: boolean;
-  wizardProjects: Array<{ id: string; name: string; description?: string; githubRepo?: string; devServerUrl?: string; status: "active" | "completed" | "archived"; createdAt: string; updatedAt: string; tags?: string[] }>;
-  wizardEditingProjectId: string | null;
-  wizardTasks: Array<{ id: string; title: string; description?: string; status: "todo" | "in_progress" | "testing" | "done" | "archived"; priority?: "low" | "medium" | "high"; createdAt: string; updatedAt: string; dueDate?: string; labels?: string[]; checklist?: Array<{ id: string; text: string; completed: boolean }>; attachments?: Array<{ id: string; name: string; url: string; type: string }>; projectId?: string }>;
-  wizardNotes: Array<{ id: string; content: string; seenByAgent: boolean; createdAt: string }>;
-  wizardDeliverables: Array<{ id: string; title: string; type: string; url?: string; createdAt: string }>;
-  wizardActionLog: Array<{ id: string; action: string; description?: string; agentId?: string; createdAt: string }>;
-  themeMedia: MediaQueryList | null;
-  themeMediaHandler: ((event: MediaQueryListEvent) => void) | null;
+  logsCursor: number | null;
+  logsLastFetchAt: number | null;
+  logsLimit: number;
+  logsMaxBytes: number;
+  logsAtBottom: boolean;
   client: GatewayBrowserClient | null;
+  refreshSessionsAfterChat: Set<string>;
   connect: () => void;
   setTab: (tab: Tab) => void;
   setTheme: (theme: ThemeMode, context?: ThemeTransitionContext) => void;
@@ -250,52 +270,15 @@ export type AppViewState = {
   setPassword: (next: string) => void;
   setSessionKey: (next: string) => void;
   setChatMessage: (next: string) => void;
-  handleChatSend: () => Promise<void>;
-  handleChatAbort: () => Promise<void>;
-  handleChatSelectQueueItem: (id: string) => void;
-  handleChatDropQueueItem: (id: string) => void;
-  handleChatClearQueue: () => void;
-  handleLogsFilterChange: (next: string) => void;
-  handleLogsLevelFilterToggle: (level: LogLevel) => void;
-  handleLogsAutoFollowToggle: (next: boolean) => void;
-  handleCallDebugMethod: (method: string, params: string) => Promise<void>;
-  handleWizardAddTask: (title: string, description?: string, projectId?: string, priority?: "low" | "medium" | "high", dueDate?: string, labels?: string[]) => void;
-  handleWizardUpdateTask: (taskId: string, updates: Partial<{ title: string; description: string; status: "todo" | "in_progress" | "testing" | "done" | "archived"; priority: "low" | "medium" | "high"; dueDate: string; labels: string[]; projectId: string }>) => void;
-  handleWizardUpdateTaskStatus: (taskId: string, status: "todo" | "in_progress" | "testing" | "done" | "archived") => void;
-  handleWizardDeleteTask: (taskId: string) => void;
-  handleWizardAddNote: (content: string) => void;
-  handleWizardUpdateNote: (noteId: string, content: string) => void;
-  handleWizardDeleteNote: (noteId: string) => void;
-  handleWizardAddTaskAttachment: (taskId: string, file: File) => void;
-  handleWizardAddTaskChecklistItem: (taskId: string, text: string) => void;
-  handleWizardUpdateChecklistItem: (taskId: string, itemId: string, updates: Partial<{ text: string; completed: boolean }>) => void;
-  handleWizardDeleteChecklistItem: (taskId: string, itemId: string) => void;
-  handleWizardRefresh: () => void;
-  handleWizardClearCache: () => void;
-  handleWizardAddProject: (name: string, description?: string) => void;
-  handleWizardUpdateProject: (projectId: string, updates: Partial<WizardProject>) => void;
-  handleWizardDeleteProject: (projectId: string) => void;
-  handleWizardEnhancePrompt?: (projectId: string) => Promise<void>;
-  handleWizardEnhanceResearch?: (projectId: string) => Promise<void>;
-  handleWizardGenerateTasksFromFeatures?: (projectId: string) => void;
-  showCreateSkillModal: boolean;
-  newSkillName: string;
-  newSkillCategory: string;
-  newSkillContent: string;
-  onSaveNewSkill: () => Promise<void>;
-  onCloseCreateSkillModal: () => void;
-  // Missing handlers needed for app-render.ts
-  resetToolStream: () => void;
-  resetChatScroll: () => void;
-  handleChatScroll: (event: Event) => void;
   handleSendChat: (messageOverride?: string, opts?: { restoreDraft?: boolean }) => Promise<void>;
   handleAbortChat: () => Promise<void>;
   removeQueuedMessage: (id: string) => void;
-  handleOpenSidebar: (content: unknown) => void;
-  handleCloseSidebar: () => void;
-  handleSplitRatioChange: (ratio: number) => void;
-  handleWorkspacePromptsLoad: () => Promise<void>;
-  handleWorkspacePromptsSave: (filename: string, content: string, enabled: boolean) => Promise<void>;
+  handleChatScroll: (event: Event) => void;
+  resetToolStream: () => void;
+  resetChatScroll: () => void;
   exportLogs: (lines: string[], label: string) => void;
   handleLogsScroll: (event: Event) => void;
+  handleOpenSidebar: (content: string) => void;
+  handleCloseSidebar: () => void;
+  handleSplitRatioChange: (ratio: number) => void;
 };
