@@ -1,0 +1,103 @@
+---
+name: send-me-my-files---r2-upload-with-short-lived-sign
+description: Upload files to Cloudflare R2, AWS S3, or any S3-compatible storage.
+homepage: https://github.com/openclaw/skills/tree/main/skills/julianengel/r2-upload/SKILL.md
+author: tree
+category: DevOps & Cloud
+metadata: { "openclaw": { "emoji": "☁️", "source": "community", "securityStatus": "SAFE" } }
+---
+
+# Send Me My Files - R2 upload with short lived signed urls
+
+Upload files to Cloudflare R2, AWS S3, or any S3-compatible storage.
+
+## Source
+
+- **Author**: tree
+- **Category**: DevOps & Cloud  
+- **Original**: [Send Me My Files - R2 upload with short lived signed urls](https://github.com/openclaw/skills/tree/main/skills/julianengel/r2-upload/SKILL.md)
+- **Security Status**: SAFE
+
+## Instructions
+
+# Send Me My Files - R2 Upload with Short Lived Signed URLs
+
+Upload files to Cloudflare R2 or any S3-compatible storage and generate presigned download links.
+
+## Features
+
+- Upload files to R2/S3 buckets
+- Generate presigned download URLs (configurable expiration)
+- Support for any S3-compatible storage (R2, AWS S3, MinIO, etc.)
+- Multiple bucket configurations
+- Automatic content-type detection
+
+## Configuration
+
+Create `~/.r2-upload.yml` (or set `R2_UPLOAD_CONFIG` env var):
+
+```yaml
+# Default bucket (used when no bucket specified)
+default: my-bucket
+
+# Bucket configurations
+buckets:
+  my-bucket:
+    endpoint: https://abc123.r2.cloudflarestorage.com
+    access_key_id: your_access_key
+    secret_access_key: your_secret_key
+    bucket_name: my-bucket
+    public_url: https://files.example.com  # Optional: custom domain
+    region: auto  # For R2, use "auto"
+    
+  # Additional buckets
+  personal:
+    endpoint: https://xyz789.r2.cloudflarestorage.com
+    access_key_id: ...
+    secret_access_key: ...
+    bucket_name: personal-files
+    region: auto
+```
+
+### Cloudflare R2 Setup
+
+1. Go to Cloudflare Dashboard → R2
+2. Create a bucket
+3. Go to R2 API Tokens: `https://dash.cloudflare.com/<ACCOUNT_ID>/r2/api-tokens`
+4. Create a new API token
+   - **Important:** Apply to specific bucket (select your bucket)
+   - Permissions: Object Read & Write
+5. Copy the Access Key ID and Secret Access Key
+6. Use endpoint format: `https://<account_id>.r2.cloudflarestorage.com`
+7. Set `region: auto`
+
+### AWS S3 Setup
+
+```yaml
+aws-bucket:
+  endpoint: https://s3.us-east-1.amazonaws.com
+  access_key_id: ...
+  secret_access_key: ...
+  bucket_name: my-aws-bucket
+  region: us-east-1
+```
+
+## Usage
+
+### Upload a file
+
+```bash
+r2-upload /path/to/file.pdf
+# Returns: https://files.example.com/abc123/file.pdf?signature=...
+```
+
+### Upload with custom path
+
+```bash
+r2-upload /path/to/file.pdf --key uploads/2026/file.pdf
+```
+
+### Upload to specific bucket
+
+```bash
+r2-upload /path/to/file.pdf --bucket pers

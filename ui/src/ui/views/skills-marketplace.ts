@@ -82,7 +82,7 @@ Provide examples of when and how to use this skill.
 
 function getSkillCategory(skill: SkillStatusEntry): SkillCategory {
   // No metadata.category available on SkillStatusEntry, use name-based heuristics
-  
+
   const name = skill.name.toLowerCase();
   if (name.includes("code") || name.includes("lint") || name.includes("dev")) return "Development";
   if (name.includes("chat") || name.includes("slack")) return "Communication";
@@ -93,7 +93,7 @@ function getSkillCategory(skill: SkillStatusEntry): SkillCategory {
   if (name.includes("db") || name.includes("sql")) return "Database";
   if (name.includes("security") || name.includes("auth")) return "Security";
   if (name.includes("deploy") || name.includes("docker")) return "DevOps";
-  
+
   return "Other";
 }
 
@@ -103,8 +103,8 @@ function renderTemplateModal(props: SkillsMarketplaceProps) {
       class="detail-modal-overlay"
       style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.75); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 2rem; backdrop-filter: blur(4px);"
       @click=${(e: Event) => {
-        if (e.target === e.currentTarget) props.onSelectSkill(null);
-      }}
+      if (e.target === e.currentTarget) props.onSelectSkill(null);
+    }}
     >
       <div 
         class="detail-modal-content"
@@ -153,30 +153,30 @@ function renderTemplateModal(props: SkillsMarketplaceProps) {
           class="btn primary"
           style="width: 100%; margin-top: 1rem;"
           @click=${() => {
-            let newName = prompt("Create New Skill\n\nEnter a name for your skill:");
-            if (!newName) return;
-            newName = newName.trim();
-            
-            const existingNames = props.report?.skills.map(s => s.name.toLowerCase()) || [];
-            if (existingNames.includes(newName.toLowerCase())) {
-              alert(`A skill named "${newName}" already exists.`);
-              return;
-            }
-            
-            props.client?.request("skills.create", {
-              skillName: newName,
-              content: TEMPLATE_CONTENT,
-              category: "custom"
-            }).then((result: any) => {
-              if (result?.success || result?.ok) {
-                alert(`Skill "${newName}" created successfully!`);
-                props.onRefresh();
-                props.onSelectSkill(null);
-              }
-            }).catch((err: any) => {
-              alert(`Failed to create skill: ${err}`);
-            });
-          }}
+      let newName = prompt("Create New Skill\n\nEnter a name for your skill:");
+      if (!newName) return;
+      newName = newName.trim();
+
+      const existingNames = props.report?.skills.map(s => s.name.toLowerCase()) || [];
+      if (existingNames.includes(newName.toLowerCase())) {
+        alert(`A skill named "${newName}" already exists.`);
+        return;
+      }
+
+      props.client?.request("skills.create", {
+        skillName: newName,
+        content: TEMPLATE_CONTENT,
+        category: "custom"
+      }).then((result: any) => {
+        if (result?.success || result?.ok) {
+          alert(`Skill "${newName}" created successfully!`);
+          props.onRefresh();
+          props.onSelectSkill(null);
+        }
+      }).catch((err: any) => {
+        alert(`Failed to create skill: ${err}`);
+      });
+    }}
         >
           📋 Clone Template
         </button>
@@ -191,8 +191,8 @@ function renderSkillDetailModal(props: SkillsMarketplaceProps, skill: SkillStatu
       class="detail-modal-overlay"
       style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.75); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 2rem; backdrop-filter: blur(4px);"
       @click=${(e: Event) => {
-        if (e.target === e.currentTarget) props.onSelectSkill(null);
-      }}
+      if (e.target === e.currentTarget) props.onSelectSkill(null);
+    }}
     >
       <div 
         class="detail-modal-content"
@@ -233,8 +233,8 @@ function renderSkillDetailModal(props: SkillsMarketplaceProps, skill: SkillStatu
               type="checkbox"
               .checked=${!skill.disabled}
               @change=${(e: Event) => {
-                props.onToggle(skill.skillKey, !(e.target as HTMLInputElement).checked);
-              }}
+      props.onToggle(skill.skillKey, !(e.target as HTMLInputElement).checked);
+    }}
               style="width: 2.5rem; height: 1.25rem; cursor: pointer;"
             />
           </label>
@@ -248,7 +248,7 @@ function renderSkillDetailModal(props: SkillsMarketplaceProps, skill: SkillStatu
                 type="password"
                 .value=${props.edits[skill.skillKey] ?? ""}
                 @input=${(e: Event) =>
-                  props.onEdit(skill.skillKey, (e.target as HTMLInputElement).value)}
+        props.onEdit(skill.skillKey, (e.target as HTMLInputElement).value)}
                 placeholder="Enter API key..."
               />
             </label>
@@ -268,8 +268,8 @@ function renderSkillDetailModal(props: SkillsMarketplaceProps, skill: SkillStatu
             class="btn"
             style="background: #3b82f6; color: white;"
             @click=${async () => {
-              await props.onLoadSkillContent(skill.skillKey);
-            }}
+      await props.onLoadSkillContent(skill.skillKey);
+    }}
           >
             📝 Edit Code
           </button>
@@ -285,41 +285,41 @@ function renderSkillDetailModal(props: SkillsMarketplaceProps, skill: SkillStatu
             class="btn"
             style="background: #a855f7; color: white;"
             @click=${async () => {
-              let newName = prompt(`Clone "${skill.name}"\\n\\nEnter a name for the cloned skill:`);
-              if (!newName) return;
-              newName = newName.trim();
-              
-              const existingNames = props.report?.skills.map(s => s.name.toLowerCase()) || [];
-              let finalName = newName;
-              let counter = 2;
-              
-              while (existingNames.includes(finalName.toLowerCase())) {
-                finalName = `${newName} (${counter})`;
-                counter++;
-              }
-              
-              if (finalName !== newName) {
-                if (!confirm(`The name "${newName}" already exists. Use "${finalName}" instead?`)) return;
-              }
-              
-              if (!props.editingContent) {
-                await props.onLoadSkillContent(skill.skillKey);
-              }
-              
-              try {
-                const result = await props.client?.request("skills.create", {
-                  skillName: finalName,
-                  content: props.editingContent,
-                  category: "custom"
-                });
-                if ((result as any)?.success || (result as any)?.ok) {
-                  alert(`Successfully cloned skill as "${finalName}"`);
-                  props.onRefresh();
-                }
-              } catch (err) {
-                alert(`Failed to clone skill: ${err}`);
-              }
-            }}
+      let newName = prompt(`Clone "${skill.name}"\\n\\nEnter a name for the cloned skill:`);
+      if (!newName) return;
+      newName = newName.trim();
+
+      const existingNames = props.report?.skills.map(s => s.name.toLowerCase()) || [];
+      let finalName = newName;
+      let counter = 2;
+
+      while (existingNames.includes(finalName.toLowerCase())) {
+        finalName = `${newName} (${counter})`;
+        counter++;
+      }
+
+      if (finalName !== newName) {
+        if (!confirm(`The name "${newName}" already exists. Use "${finalName}" instead?`)) return;
+      }
+
+      if (!props.editingContent) {
+        await props.onLoadSkillContent(skill.skillKey);
+      }
+
+      try {
+        const result = await props.client?.request("skills.create", {
+          skillName: finalName,
+          content: props.editingContent,
+          category: "custom"
+        });
+        if ((result as any)?.success || (result as any)?.ok) {
+          alert(`Successfully cloned skill as "${finalName}"`);
+          props.onRefresh();
+        }
+      } catch (err) {
+        alert(`Failed to clone skill: ${err}`);
+      }
+    }}
             ?disabled=${props.busyKey === skill.skillKey}
           >
             📋 Clone
@@ -329,10 +329,10 @@ function renderSkillDetailModal(props: SkillsMarketplaceProps, skill: SkillStatu
               class="btn"
               style="background: #ef4444; color: white;"
               @click=${() => {
-                if (confirm(`Delete "${skill.name}"? This cannot be undone.`)) {
-                  props.onDeleteSkill(skill.skillKey);
-                }
-              }}
+        if (confirm(`Delete "${skill.name}"? This cannot be undone.`)) {
+          props.onDeleteSkill(skill.skillKey);
+        }
+      }}
             >
               🗑️ Delete
             </button>
@@ -355,9 +355,9 @@ function renderSkillDetailModal(props: SkillsMarketplaceProps, skill: SkillStatu
                   class="btn btn-sm"
                   style="background: #10b981; color: white;"
                   @click=${() => {
-                    const content = props.editingContent || props.edits[skill.skillKey + "_content"] || "";
-                    props.onSaveSkillContent(skill.skillKey, content);
-                  }}
+        const content = props.editingContent || props.edits[skill.skillKey + "_content"] || "";
+        props.onSaveSkillContent(skill.skillKey, content);
+      }}
                 >
                   💾 Save
                 </button>
@@ -400,10 +400,10 @@ function renderCreateSkillModal(props: SkillsMarketplaceProps) {
     <div
       style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 1rem; overflow: hidden;"
       @click=${(e: Event) => {
-        if ((e.target as HTMLElement).style.position === "fixed") {
-          props.onCloseCreateSkillModal();
-        }
-      }}
+      if ((e.target as HTMLElement).style.position === "fixed") {
+        props.onCloseCreateSkillModal();
+      }
+    }}
     >
       <div
         style="background: #1f2937; border-radius: 0.75rem; width: 100%; max-width: min(900px, 95vw); height: 100%; max-height: min(90vh, calc(100vh - 2rem)); display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);"
@@ -505,12 +505,12 @@ function renderSkillCard(skill: SkillStatusEntry, props: SkillsMarketplaceProps)
     "DevOps": "#6366f1",
     "Other": "#6b7280",
   };
-  
+
   const categoryColor = categoryColors[category] || "#6b7280";
 
   return html`
     <div
-      class="card"
+      class="skill-card"
       style="cursor: pointer; transition: all 0.3s ease; border: 2px solid ${isSelected ? categoryColor : "rgba(255, 255, 255, 0.1)"}; background: ${isSelected ? `rgba(${parseInt(categoryColor.slice(1, 3), 16)}, ${parseInt(categoryColor.slice(3, 5), 16)}, ${parseInt(categoryColor.slice(5, 7), 16)}, 0.15)` : "linear-gradient(135deg, rgba(31, 41, 55, 0.8) 0%, rgba(17, 24, 39, 0.9) 100%)"}; box-shadow: ${isSelected ? `0 8px 16px rgba(${parseInt(categoryColor.slice(1, 3), 16)}, ${parseInt(categoryColor.slice(3, 5), 16)}, ${parseInt(categoryColor.slice(5, 7), 16)}, 0.3)` : "0 4px 6px rgba(0, 0, 0, 0.3)"}; transform: ${isSelected ? "translateY(-2px)" : "none"}; position: relative; overflow: hidden;"
       @click=${() => props.onSelectSkill(skillKey)}
     >
@@ -555,9 +555,9 @@ function renderSkillCard(skill: SkillStatusEntry, props: SkillsMarketplaceProps)
             style="width: 100%; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; margin-top: 0.5rem; font-weight: 600; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);"
             ?disabled=${busy}
             @click=${(e: Event) => {
-              e.stopPropagation();
-              props.onInstall(skillKey, skill.name, skill.install[0].id);
-            }}
+        e.stopPropagation();
+        props.onInstall(skillKey, skill.name, skill.install[0].id);
+      }}
           >
             ${busy ? "Installing…" : `📦 ${skill.install[0].label}`}
           </button>
@@ -571,14 +571,14 @@ function renderSkillCard(skill: SkillStatusEntry, props: SkillsMarketplaceProps)
 // This must be called at the app-render level, after </main>, to ensure proper fixed positioning
 export function renderSkillsModals(props: SkillsMarketplaceProps) {
   const skills = props.report?.skills ?? [];
-  const selectedSkill = props.selectedSkillKey 
+  const selectedSkill = props.selectedSkillKey
     ? skills.find((s: SkillStatusEntry) => s.skillKey === props.selectedSkillKey || s.name === props.selectedSkillKey)
     : null;
 
   return html`
     ${props.selectedSkillKey === '__TEMPLATE__' ? renderTemplateModal(props) : nothing}
-    ${props.selectedSkillKey && props.selectedSkillKey !== '__TEMPLATE__' && selectedSkill 
-      ? renderSkillDetailModal(props, selectedSkill) 
+    ${props.selectedSkillKey && props.selectedSkillKey !== '__TEMPLATE__' && selectedSkill
+      ? renderSkillDetailModal(props, selectedSkill)
       : nothing}
     ${props.showCreateSkillModal ? renderCreateSkillModal(props) : nothing}
   `;
@@ -587,10 +587,10 @@ export function renderSkillsModals(props: SkillsMarketplaceProps) {
 export function renderSkillsMarketplace(props: SkillsMarketplaceProps) {
   const skills = props.report?.skills ?? [];
   const filter = props.filter.trim().toLowerCase();
-  
+
   let filtered = skills;
   if (filter) {
-    filtered = filtered.filter((skill: SkillStatusEntry) => 
+    filtered = filtered.filter((skill: SkillStatusEntry) =>
       [skill.name, skill.description, skill.source].join(" ").toLowerCase().includes(filter)
     );
   }
@@ -703,9 +703,9 @@ export function renderSkillsMarketplace(props: SkillsMarketplaceProps) {
     </div>
 
     ${renderHelpModal({
-      isOpen: helpModalOpen,
-      title: "What are Skills?",
-      content: html`
+    isOpen: helpModalOpen,
+    title: "What are Skills?",
+    content: html`
         <p>Skills are modular, self-contained packages that extend OpenClaw's capabilities.</p>
         <h4>What Skills Provide:</h4>
         <ul>
@@ -719,7 +719,7 @@ export function renderSkillsMarketplace(props: SkillsMarketplaceProps) {
           <strong>Tools</strong> are <em>functions</em> that agents can call.
         </p>
       `,
-      onClose: () => { helpModalOpen = false; },
-    })}
+    onClose: () => { helpModalOpen = false; },
+  })}
   `;
 }

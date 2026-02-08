@@ -2273,15 +2273,8 @@
   min-width: auto;
 }
 
-.skills-grid {
-  grid-template-columns: 1fr;
-}
+/* Skills grid now uses the shared .skills-grid, .tools-grid rule defined earlier */
 
-@container (min-width: 900px) {
-  .skills-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 
 @media (max-width: 980px) {
   .agents-layout {

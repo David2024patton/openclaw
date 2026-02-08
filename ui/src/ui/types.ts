@@ -772,3 +772,36 @@ export type LogEntry = {
   message?: string | null;
   meta?: Record<string, unknown> | null;
 };
+
+// Agent file types for agent-files controller
+export type AgentFileEntry = {
+  name: string;
+  content?: string | null;
+  size?: number | null;
+  updatedAt?: number | null;
+};
+
+export type AgentsFilesListResult = {
+  agentId: string;
+  files: AgentFileEntry[];
+};
+
+export type AgentsFilesGetResult = {
+  agentId: string;
+  file: AgentFileEntry | null;
+};
+
+export type AgentsFilesSetResult = {
+  agentId: string;
+  file: AgentFileEntry;
+};
+
+// Agent identity types for agent-identity controller
+export type AgentIdentityResult = {
+  agentId: string;
+  name?: string | null;
+  theme?: string | null;
+  emoji?: string | null;
+  avatar?: string | null;
+  avatarUrl?: string | null;
+};
